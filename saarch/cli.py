@@ -2,23 +2,34 @@
 
 Project lifecycle (validated, resumable states):
     DRAFT -> SPECIFIED -> PLANNED -> GENERATING -> VERIFYING -> READY
-                       (any step may -> BLOCKED, with a recorded reason)
+      -> any step may -> BLOCKED (diagnosed) or CHALLENGED (needs acceptance)
+      -> prohibited input -> REFUSED (non-overridable)
+
+Exit codes (stable contract for scripting and CI):
+    0  success (including READY)
+    1  verification failed (after repair) — see diagnosis/proposal.md
+    2  invalid input, bad state, or missing prerequisites
+    3  REFUSED — prohibited work, non-overridable
+    4  CHALLENGED — contradictory/underspecified input awaiting acceptance
 """
 from __future__ import annotations
 
 import argparse
-import json
+import os
 import sys
 from pathlib import Path
 
 from . import __version__
 from .audit import AuditLog
+from .challenge import detect_challenges, resolve_conflicts
 from .delivery import GitHubDelivery, export_zip, get_github_token
 from .generator import generate, plan_tasks
 from .models import (
-    BLOCKED, DRAFT, GENERATING, PLANNED, READY, SPECIFIED, VERIFYING,
+    Assumption, BLOCKED, CHALLENGED, DRAFT, GENERATING, PLANNED, READY,
+    REFUSED, SPECIFIED, VERIFYING,
     Project, ProjectIntake, ValidationError,
 )
+from .policy import screen_intake
 from .provider import get_provider
 from .spec_builder import build_spec, slugify
 from .verifier import repair, verify
@@ -67,13 +78,28 @@ def cmd_init(args) -> None:
     try:
         intake.validate()
     except ValidationError as exc:
-        # blocked immediately, with the batched questions answered by the error
         project.transition(BLOCKED, f"intake invalid: {exc}")
         project.save(workdir)
         AuditLog(workdir).append("intake_rejected", reason=str(exc))
         print(f"BLOCKED — intake invalid:\n  {exc}")
         raise SystemExit(2)
+
     project.slug = slugify(args.slug or intake.instructions)[:60] or "project"
+
+    # --- principled refusal: prohibited work is refused categorically.
+    # No flag bypasses this — by design.
+    findings = screen_intake(intake)
+    if findings:
+        project.policy_findings = findings
+        project.transition(REFUSED, "; ".join(findings))
+        project.save(workdir)
+        AuditLog(workdir).append("intake_refused", findings=findings)
+        print("REFUSED — prohibited work, categorically:")
+        for f in findings:
+            print(f"  - {f}")
+        print("This refusal cannot be accepted away or retried with other inputs.")
+        raise SystemExit(3)
+
     project.save(workdir)
     AuditLog(workdir).append("intake_accepted", slug=project.slug,
                              language=intake.language,
@@ -85,17 +111,80 @@ def cmd_spec(args) -> None:
     workdir = _workdir(args)
     project = _load_or_fail(workdir)
     audit = AuditLog(workdir)
+
+    if project.state == REFUSED:
+        print(f"REFUSED — {project.refusal_reason}")
+        print("Refusals are non-overridable; start a new project instead.")
+        raise SystemExit(3)
     if project.state == SPECIFIED:
         print("already SPECIFIED (run 'saarch plan')")
         return
-    project.transition(SPECIFIED)
-    project.spec = build_spec(project, provider=get_provider(), audit=audit)
+
+    # principled refusal re-screen (defense in depth; also catches edits)
+    findings = screen_intake(project.intake)
+    if findings:
+        project.policy_findings = findings
+        project.transition(REFUSED, "; ".join(findings))
+        project.save(workdir)
+        audit.append("intake_refused", findings=findings, stage="spec")
+        print("REFUSED — prohibited work, categorically:")
+        for f in findings:
+            print(f"  - {f}")
+        raise SystemExit(3)
+
+    # --- constructive resistance: challenge contradictory/underspecified input
+    accept = bool(getattr(args, "accept_assumptions", False))
+    challenges = detect_challenges(project.intake)
+    project.challenges = challenges
+    gates = [c for c in challenges if c.severity == "gate"]
+    if gates and not accept and project.state == DRAFT:
+        project.transition(CHALLENGED)
+        project.save(workdir)
+        audit.append("challenged",
+                     challenges=[{k: getattr(c, k)
+                                  for k in ("id", "kind", "message")} for c in gates])
+        print("CHALLENGED — the inputs contradict or underspecify the request:")
+        for c in gates:
+            print(f"  [{c.kind}] {c.message}")
+            print(f"           evidence: {c.evidence}")
+            print(f"           resolution: {c.resolution}")
+        print("\n  To proceed, either edit the inputs (saarch init --force …),")
+        print("  or accept recorded assumptions — guardrails win over conflicting")
+        print("  capabilities:  saarch spec --accept-assumptions")
+        raise SystemExit(4)
+
+    if project.state == CHALLENGED:
+        project.transition(SPECIFIED)
+    else:
+        project.transition(SPECIFIED)
+
+    kept, dropped = (resolve_conflicts(project.intake, challenges) if gates
+                     else (project.intake.normalized_capabilities(), []))
+    project.spec = build_spec(project, provider=get_provider(), audit=audit,
+                              capabilities_override=(kept or None))
+    if accept:
+        project.challenges_accepted = True
+        for cap in dropped:
+            project.spec.assumptions.append(Assumption(
+                f"Capability dropped by guardrail priority (accepted by user): “{cap}”"))
+        for c in challenges:
+            project.spec.assumptions.append(Assumption(
+                f"Accepted challenge ({c.id}): {c.message} — resolution recorded."))
+        audit.append("challenges_accepted", dropped=dropped,
+                     accepted=[c.id for c in challenges if c.severity == "gate"])
+    for c in challenges:
+        if c.severity == "note":
+            project.spec.assumptions.append(Assumption(
+                f"Recorded challenge ({c.id}): {c.message}"))
     project.save(workdir)
+
     s = project.spec
     print(f"SPECIFIED — v{s.version} (profile: {s.profile})")
     print(f"  entities:   {', '.join(e.name for e in s.entities)}")
     print(f"  endpoints:  {len(s.endpoints)}")
     print(f"  exclusions: {len(s.exclusions)}")
+    if dropped:
+        print(f"  DROPPED by guardrail priority: {'; '.join(dropped)}")
     print(f"  assumptions recorded: {len(s.assumptions)}")
     for q in s.questions:
         print(f"  QUESTION: {q.text}")
@@ -118,9 +207,7 @@ def cmd_generate(args) -> None:
     workdir = _workdir(args)
     project = _load_or_fail(workdir)
     audit = AuditLog(workdir)
-    if project.state in (GENERATING, VERIFYING):
-        pass  # regeneration is idempotent and allowed
-    else:
+    if project.state not in (GENERATING, VERIFYING):
         project.transition(GENERATING)
     out = generate(project, workdir, audit)
     project.save(workdir)
@@ -132,11 +219,11 @@ def cmd_verify(args) -> None:
     workdir = _workdir(args)
     project = _load_or_fail(workdir)
     audit = AuditLog(workdir)
-    if project.state == GENERATING:
+    if project.state in (GENERATING, READY):
         project.transition(VERIFYING)
     elif project.state != VERIFYING:
-        print("error: generate before verifying (state is "
-              f"{project.state}); run 'saarch generate' first")
+        print(f"error: generate before verifying (state is {project.state}); "
+              "run 'saarch generate' first")
         raise SystemExit(2)
     project.verification = verify(project, workdir, audit)
     project.save(workdir)
@@ -146,8 +233,7 @@ def cmd_verify(args) -> None:
         project.save(workdir)
         print("READY — verification passed")
     else:
-        project.transition(BLOCKED,
-                           "verification failed (run 'saarch repair' or inspect details)")
+        project.transition(BLOCKED, "verification failed (run 'saarch repair')")
         project.save(workdir)
         print("BLOCKED — verification failed")
         raise SystemExit(1)
@@ -158,23 +244,70 @@ def cmd_repair(args) -> None:
     project = _load_or_fail(workdir)
     audit = AuditLog(workdir)
     if project.state == BLOCKED:
-        project.transition(VERIFYING)  # re-enter the loop
+        project.transition(VERIFYING)  # re-open a diagnosed project for repair
     if project.state != VERIFYING:
         print("nothing to repair (run 'saarch generate' then 'saarch verify')")
-        return
-    project.verification = repair(project, workdir, audit)
-    if project.verification.passed:
+        raise SystemExit(2)
+
+    # --- adaptive persistence: strategy ladder + stagnation detection
+    report, outcome, proposal_path = repair(project, workdir, audit)
+    project.verification = report
+    if report.passed:
         project.transition(READY)
         project.save(workdir)
-        _print_checks(project.verification)
+        _print_checks(report)
         print("READY — verification passed after repair")
     else:
-        project.transition(BLOCKED,
-                           "repair budget exhausted; verification still failing")
+        if outcome == "stagnation-diagnosed":
+            reason = ("repair stopped: the same failure persisted across different "
+                      "repair strategies; a diagnosis and a proposed specification "
+                      "revision were written instead of repeating the attempt")
+        else:
+            reason = "repair budget exhausted; verification still failing"
+        project.transition(BLOCKED, reason)
         project.save(workdir)
-        _print_checks(project.verification)
-        print("BLOCKED — repair budget exhausted; failures reported above")
+        _print_checks(report)
+        print(f"BLOCKED — {reason}")
+        if proposal_path:
+            print(f"Diagnosis and proposal: {proposal_path}")
         raise SystemExit(1)
+
+
+def cmd_serve(args) -> None:
+    """Launch the generated application and open it in the browser."""
+    import socket
+    import subprocess as sp
+    import webbrowser
+
+    workdir = _workdir(args)
+    project = _load_or_fail(workdir)
+    app_dir = workdir / "generated" / project.slug
+    if not (app_dir / "run.py").is_file():
+        print("error: nothing to serve yet — run 'saarch run …' or "
+              "'saarch generate' first")
+        raise SystemExit(2)
+
+    port = args.port
+    if port == 0:
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+
+    env = dict(os.environ)
+    env["APP_HOST"] = "127.0.0.1"
+    env["APP_PORT"] = str(port)
+    env.setdefault("APP_DB", "app.db")
+    proc = sp.Popen([sys.executable, "run.py"], cwd=str(app_dir), env=env)
+    url = f"http://127.0.0.1:{port}"
+    print(f"serving {url} (Ctrl+C here to stop)")
+    if not args.no_open:
+        print(f"launching {url} in your browser")
+        webbrowser.open(url)
+    try:
+        proc.wait()
+    except KeyboardInterrupt:
+        proc.terminate()
+        print("\nstopped")
 
 
 def cmd_deliver(args) -> None:
@@ -211,17 +344,21 @@ def cmd_deliver(args) -> None:
 def cmd_run(args) -> None:
     workdir = _workdir(args)
     if not (workdir / "project.json").exists():
-        # fabricate an init call with the CLI args provided on `run`
         ns = argparse.Namespace(
             dir=args.dir, instructions=args.instructions, scope=args.scope,
             capabilities=args.capabilities, guardrails=args.guardrails,
             language=args.language, slug=args.slug, force=False)
         cmd_init(ns)
     project = _load_or_fail(workdir)
-    audit = AuditLog(workdir)
+    accept = bool(getattr(args, "accept_assumptions", False))
     for step in (cmd_spec, cmd_plan, cmd_generate, cmd_verify):
-        step(argparse.Namespace(dir=args.dir))
+        step(argparse.Namespace(dir=args.dir, accept_assumptions=accept))
         project = _load_or_fail(workdir)
+        if project.state == CHALLENGED:
+            print("\nPipeline paused at the challenge gate (see above). "
+                  "Constructive resistance does not auto-accept: re-run with "
+                  "--accept-assumptions, or edit the inputs.")
+            raise SystemExit(4)
         if project.state == BLOCKED:
             print(f"BLOCKED at verification; attempting bounded repair "
                   f"(budget {project.repair_budget})")
@@ -233,7 +370,7 @@ def cmd_run(args) -> None:
     if args.deliver:
         cmd_deliver(argparse.Namespace(
             dir=args.dir, github=args.github,
-            repo_name=getattr(args, "repo_name", None)))
+            repo_name=getattr(args, "repo_name", "")))
 
 
 def cmd_status(args) -> None:
@@ -241,6 +378,15 @@ def cmd_status(args) -> None:
     project = _load_or_fail(workdir)
     print(f"state:  {project.state}")
     print(f"slug:   {project.slug}")
+    if project.state == REFUSED:
+        print(f"refused: {project.refusal_reason}")
+        return
+    if project.challenges:
+        label = (" (accepted)" if project.challenges_accepted
+                 else " (awaiting decision)")
+        print(f"challenges{label}:")
+        for c in project.challenges:
+            print(f"  [{c.severity}/{c.kind}] {c.id}: {c.message}")
     if project.blocked_reason:
         print(f"reason: {project.blocked_reason}")
     if project.spec:
@@ -251,13 +397,15 @@ def cmd_status(args) -> None:
         _print_checks(project.verification)
 
 
-# ---------------------------------------------------------------- entry
+# ---------------------------------------------------------------- parser
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="saarch",
-        description="SUPERAGENT: Autonomous Application Architect & Repository Generator "
-                    "— five inputs in, a verified application repository out.")
+        description="SUPERAGENT: Autonomous Application Architect & Repository "
+                    "Generator — five inputs in, a verified application out.",
+        epilog="exit codes: 0 ok · 1 verification failed · 2 invalid input/state "
+               "· 3 REFUSED (prohibited) · 4 CHALLENGED (needs acceptance)")
     p.add_argument("--version", action="version", version=f"saarch {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
 
@@ -279,15 +427,31 @@ def build_parser() -> argparse.ArgumentParser:
     pi.add_argument("--force", action="store_true", help="overwrite existing project")
     pi.set_defaults(func=cmd_init)
 
-    for name, help_ in (("spec", "derive the structured specification"),
-                        ("plan", "produce the dependency-ordered build plan"),
+    ps = sub.add_parser("spec", help="derive the structured specification "
+                                     "(challenge gate applies)")
+    ps.add_argument("--dir", default=".")
+    ps.add_argument("--accept-assumptions", action="store_true",
+                    help="accept gate-level challenges; guardrails win over "
+                         "conflicting capabilities, and acceptance is recorded")
+    ps.set_defaults(func=cmd_spec)
+
+    for name, help_ in (("plan", "produce the dependency-ordered build plan"),
                         ("generate", "render the full application"),
                         ("verify", "run real checks in isolation"),
-                        ("repair", "bounded repair loop"),
+                        ("repair", "adaptive repair: stops repeating failed "
+                                   "approaches, diagnoses, proposes a better spec"),
                         ("status", "show project state")):
         sp = sub.add_parser(name, help=help_)
         sp.add_argument("--dir", default=".")
         sp.set_defaults(func=getattr(sys.modules[__name__], f"cmd_{name}"))
+
+    psv = sub.add_parser("serve", help="launch the generated app in your browser")
+    psv.add_argument("--dir", default=".")
+    psv.add_argument("--port", type=int, default=0,
+                     help="port to serve on (default: pick a free port)")
+    psv.add_argument("--no-open", action="store_true",
+                     help="do not open the browser automatically")
+    psv.set_defaults(func=cmd_serve)
 
     pd = sub.add_parser("deliver", help="export zip or push to GitHub")
     pd.add_argument("--dir", default=".")
@@ -301,6 +465,8 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("--deliver", action="store_true", help="deliver after READY")
     pr.add_argument("--github", action="store_true",
                     help="deliver to GitHub (requires GITHUB_TOKEN)")
+    pr.add_argument("--accept-assumptions", action="store_true",
+                    help="accept gate-level challenges when running the pipeline")
     pr.set_defaults(func=cmd_run)
 
     return p

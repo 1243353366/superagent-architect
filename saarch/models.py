@@ -39,6 +39,7 @@ class ValidationError(Exception):
 # ---------------------------------------------------------------- states
 
 DRAFT = "DRAFT"
+CHALLENGED = "CHALLENGED"
 SPECIFIED = "SPECIFIED"
 PLANNED = "PLANNED"
 GENERATING = "GENERATING"
@@ -46,16 +47,28 @@ VERIFYING = "VERIFYING"
 REPAIRING = "REPAIRING"
 READY = "READY"
 BLOCKED = "BLOCKED"
+REFUSED = "REFUSED"
 
+# The three behaviors are encoded as distinct terminal-ish states:
+#   REFUSED     — prohibited work (policy.py): non-overridable, no acceptance path
+#   CHALLENGED  — contradictory/underspecified input (challenge.py): requires
+#                 explicit --accept-assumptions to proceed; guardrails win
+#   BLOCKED     — honest failure (verifier.py): diagnosed, with a proposed
+#                 better specification instead of repeated identical attempts
 TRANSITIONS = {
-    DRAFT: {SPECIFIED, BLOCKED},
-    SPECIFIED: {PLANNED, BLOCKED},
+    DRAFT: {SPECIFIED, CHALLENGED, REFUSED, BLOCKED},
+    CHALLENGED: {SPECIFIED, REFUSED, BLOCKED},
+    SPECIFIED: {PLANNED, REFUSED, BLOCKED},
     PLANNED: {GENERATING, BLOCKED},
     GENERATING: {VERIFYING, BLOCKED},
     VERIFYING: {REPAIRING, READY, BLOCKED},
     REPAIRING: {VERIFYING, BLOCKED},
-    READY: set(),
-    BLOCKED: set(),
+    # READY reopens for re-verification (the acceptance loop breaks a READY
+    # build on purpose, and re-verification must catch it)
+    READY: {VERIFYING, BLOCKED},
+    # BLOCKED reopens to VERIFYING so a diagnosed project can be repaired
+    BLOCKED: {VERIFYING},
+    REFUSED: set(),
 }
 
 
@@ -96,6 +109,16 @@ class Risk:
 @dataclass
 class ClarifyingQuestion:
     text: str
+
+
+@dataclass
+class Challenge:
+    id: str
+    kind: str            # "contradiction" | "underspecified" | "unsound"
+    severity: str        # "gate" (requires acceptance) | "note" (recorded)
+    message: str
+    evidence: str = ""
+    resolution: str = ""
 
 
 @dataclass
@@ -188,6 +211,17 @@ class Project:
     slug: str = "project"
     repair_budget: int = 2
     repairs_used: int = 0
+    # adaptive persistence: stop repeating a failing approach after this many
+    # consecutive identical failure signatures, even if budget remains
+    max_repeat_failures: int = 2
+    # principled refusal (policy.py)
+    policy_findings: List[str] = field(default_factory=list)
+    refusal_reason: str = ""
+    # constructive resistance (challenge.py)
+    challenges: List[Challenge] = field(default_factory=list)
+    challenges_accepted: bool = False
+    # repair strategy log: [{attempt, strategy, signature, passed}]
+    repair_log: List[dict] = field(default_factory=list)
 
     # ---- state machine ----
     def transition(self, new_state: str, reason: str = "") -> None:
@@ -201,6 +235,8 @@ class Project:
             self.blocked_reason = reason or "blocked"
         elif new_state == READY:
             self.blocked_reason = ""
+        elif new_state == REFUSED:
+            self.refusal_reason = reason or "prohibited work"
 
     # ---- persistence ----
     def to_dict(self) -> dict:
@@ -214,6 +250,12 @@ class Project:
         p.blocked_reason = d.get("blocked_reason", "")
         p.repair_budget = d.get("repair_budget", 2)
         p.repairs_used = d.get("repairs_used", 0)
+        p.max_repeat_failures = d.get("max_repeat_failures", 2)
+        p.policy_findings = list(d.get("policy_findings", []))
+        p.refusal_reason = d.get("refusal_reason", "")
+        p.challenges = [Challenge(**c) for c in d.get("challenges", [])]
+        p.challenges_accepted = bool(d.get("challenges_accepted", False))
+        p.repair_log = list(d.get("repair_log", []))
         if d.get("intake"):
             p.intake = ProjectIntake(**d["intake"])
         if d.get("spec"):

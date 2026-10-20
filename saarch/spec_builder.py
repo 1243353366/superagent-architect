@@ -101,9 +101,13 @@ def derive_endpoints(entities: List[EntitySpec]) -> List[EndpointSpec]:
 
 
 def build_spec(project: Project, provider: Optional[ModelProvider] = None,
-               audit: Optional[AuditLog] = None) -> ProjectSpec:
+               audit: Optional[AuditLog] = None,
+               capabilities_override: Optional[List[str]] = None) -> ProjectSpec:
     intake = project.intake
-    caps = intake.normalized_capabilities()
+    # capabilities_override is set when the user accepted a challenge and
+    # guardrail priority dropped conflicting capabilities (see challenge.py)
+    caps = (capabilities_override if capabilities_override is not None
+            else intake.normalized_capabilities())
 
     entities = derive_entities(caps)
     # Optional enrichment: an LLM provider may refine entity field types.

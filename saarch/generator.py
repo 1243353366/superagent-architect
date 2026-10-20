@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import List
 
 from .audit import AuditLog
-from .models import PlanTask, Project
+from .models import PlanTask, Project, ProjectSpec
 
 # ---------------------------------------------------------------- plan
 
@@ -667,9 +667,16 @@ def _title_for(spec) -> str:
 
 
 def generate(project: Project, workdir: Path,
-             audit: AuditLog | None = None) -> Path:
-    """Render the full application tree from the project spec."""
+             audit: AuditLog | None = None, minimal: bool = False) -> Path:
+    """Render the full application tree from the project spec.
+
+    ``minimal`` is the alternate repair strategy used by adaptive persistence:
+    it generates the smallest verifiable core (first resource only) instead
+    of repeating the full generation that already failed.
+    """
     spec = project.spec
+    if minimal and len(spec.entities) > 1:
+        spec = ProjectSpec(**{**spec.__dict__, "entities": spec.entities[:1]})
     out = Path(workdir) / "generated" / project.slug
     (out / "app").mkdir(parents=True, exist_ok=True)
     (out / "tests").mkdir(parents=True, exist_ok=True)
@@ -713,6 +720,11 @@ def generate(project: Project, workdir: Path,
               .replace("__TITLE__", title)
               .replace("__INSTRUCTIONS__", spec.instructions.strip())
               .replace("__KEYS__", keys))
+    if minimal:
+        readme += ("\n\n> Note: this build was generated in *minimal repair mode* "
+                   "after full generation failed verification repeatedly; only "
+                   "the first resource is included. See the delivering tool's "
+                   "proposal.md for the diagnosis.\n")
     (out / "README.md").write_text(readme, encoding="utf-8")
     (out / ".env.example").write_text(_T_ENV, encoding="utf-8")
     (out / ".gitignore").write_text(_T_GITIGNORE, encoding="utf-8")
