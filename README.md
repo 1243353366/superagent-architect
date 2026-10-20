@@ -186,10 +186,23 @@ Honesty is a system invariant here, so capabilities are sorted by evidence:
 - Explicit user approval gates (deploy to production, destructive operations,
   publishing, spending) are outside the agent's autonomous boundary.
 
+## Architecture
+
+The system is five layers — **core builder** (app generation, user workflow,
+specification), **agentic engine** (planning, tool use, autonomous repair,
+refusal authority), **engineering engine** (schemas, migrations, backend,
+UI, testing), **execution layer** (sandboxing, real verification, bounded
+retries), and **delivery layer** (GitHub, export, versioning, iterative
+edits). Each layer maps to concrete modules:
+see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## Repository layout
 
 ```
+ARCHITECTURE.md      # the five layers, mapped to the modules that enforce them
 saarch/
+  policy.py          # principled refusal — prohibited work (REFUSED, exit 3)
+  challenge.py       # constructive resistance — contradictions (CHALLENGED, exit 4)
   models.py         # five-input intake, spec models, state machine, persistence
   audit.py          # append-only JSONL audit trail
   spec_builder.py   # intake -> structured spec (entities, endpoints, exclusions, assumptions)
@@ -198,7 +211,8 @@ saarch/
   verifier.py       # real subprocess checks + bounded repair loop
   delivery.py       # zip export + GitHub REST delivery (stdlib only)
   cli.py            # init/spec/plan/generate/verify/repair/deliver/run/status
-tests/              # 16 tests incl. full vertical slice (generation + real verification)
+tests/              # 32 tests: pipeline, behaviors (refusal/challenge), adaptive persistence
+scripts/acceptance.py  # the acceptance test: generate → run → detect → fix → deliver
 examples/           # a real generated+verified app, its audit trail, evidence
 .github/workflows/  # CI: python 3.9–3.13, runs the full pipeline
 ```
