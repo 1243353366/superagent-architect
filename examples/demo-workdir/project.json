@@ -1,0 +1,229 @@
+{
+  "state": "READY",
+  "intake": {
+    "instructions": "A personal task tracker for daily planning.",
+    "scope": "Single user, local data only. exclude: team collaboration, sharing, cloud sync",
+    "capabilities": [
+      "create tasks with a title and notes",
+      "mark tasks as done",
+      "delete tasks"
+    ],
+    "guardrails": "No external network calls. Data stays on the local machine. No telemetry.",
+    "language": "python"
+  },
+  "spec": {
+    "version": 1,
+    "instructions": "A personal task tracker for daily planning.",
+    "boundaries": "Single user, local data only. exclude: team collaboration, sharing, cloud sync",
+    "exclusions": [
+      "team collaboration, sharing, cloud sync"
+    ],
+    "functional_requirements": [
+      "System shall support: create tasks with a title and notes",
+      "System shall support: mark tasks as done",
+      "System shall support: delete tasks"
+    ],
+    "entities": [
+      {
+        "name": "task",
+        "table": "task",
+        "fields": [
+          {
+            "name": "title",
+            "type": "str",
+            "required": true
+          },
+          {
+            "name": "notes",
+            "type": "str",
+            "required": false
+          },
+          {
+            "name": "done",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/api/tasks",
+        "summary": "List tasks"
+      },
+      {
+        "method": "POST",
+        "path": "/api/tasks",
+        "summary": "Create a task"
+      },
+      {
+        "method": "GET",
+        "path": "/api/tasks/{id}",
+        "summary": "Get one task by id"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/tasks/{id}",
+        "summary": "Update a task"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/tasks/{id}",
+        "summary": "Delete a task"
+      },
+      {
+        "method": "GET",
+        "path": "/health",
+        "summary": "Health check"
+      }
+    ],
+    "ui_routes": [
+      "GET / \u2014 single-page UI listing every resource"
+    ],
+    "security_requirements": [
+      "Secrets are supplied via environment variables, never committed to source code, logs, or client bundles.",
+      "All untrusted input is validated at system boundaries with deny-by-default error handling.",
+      "Authorization is deny-by-default; least-privilege access is assumed.",
+      "Generated code is only executed in an isolated environment (subprocess with timeout, or a configured sandbox).",
+      "User-provided instructions and tool output are untrusted input and cannot override system guardrails.",
+      "No capability, dependency, execution result, or integration status is ever fabricated; unverified claims are labeled unverified.",
+      "No external network calls. Data stays on the local machine. No telemetry."
+    ],
+    "testing_criteria": [
+      "Compilation check (python -m compileall) passes on all generated sources.",
+      "Generated project unit and integration tests run and pass in a clean subprocess.",
+      "Secret scan of the generated tree finds no hardcoded credentials."
+    ],
+    "dependencies": [
+      "python >= 3.9 (standard library only)"
+    ],
+    "assumptions": [
+      {
+        "text": "Entity model derived deterministically from capabilities (deterministic derivation (no model provider configured)); each capability maps to one resource with fields: title (str, required), notes (str), done (bool), created_at (datetime, required)."
+      },
+      {
+        "text": "SQLite chosen as the data store: single-file, zero-config, portable; appropriate for the MVP scope and swappable via migrations."
+      },
+      {
+        "text": "English pluralization applied naively (append s/es) for API routes."
+      },
+      {
+        "text": "Authentication not generated because no capability or guardrail explicitly required authenticated roles; recorded as a risk."
+      }
+    ],
+    "risks": [
+      {
+        "text": "No authentication/authorization layer was requested or generated; generated API is single-tenant and must sit behind a trusted boundary before exposure.",
+        "severity": "medium"
+      },
+      {
+        "text": "SQLite suits development and small deployments; high-concurrency production use needs a client-server database.",
+        "severity": "low"
+      },
+      {
+        "text": "Entity field shapes are template-derived; unusual domain fields will need storage.py and validation.py edits.",
+        "severity": "low"
+      }
+    ],
+    "questions": [],
+    "profile": "python-stdlib-sqlite"
+  },
+  "plan": [
+    {
+      "id": "models",
+      "title": "Data models and resource registry",
+      "depends_on": []
+    },
+    {
+      "id": "storage",
+      "title": "SQLite schema and versioned migrations",
+      "depends_on": [
+        "models"
+      ]
+    },
+    {
+      "id": "validation",
+      "title": "Input validation at API boundary",
+      "depends_on": [
+        "models"
+      ]
+    },
+    {
+      "id": "api",
+      "title": "Data access layer (CRUD)",
+      "depends_on": [
+        "storage",
+        "validation"
+      ]
+    },
+    {
+      "id": "ui",
+      "title": "Single-page web UI",
+      "depends_on": [
+        "api"
+      ]
+    },
+    {
+      "id": "server",
+      "title": "HTTP server and routing",
+      "depends_on": [
+        "api",
+        "ui"
+      ]
+    },
+    {
+      "id": "entry",
+      "title": "Application entry point",
+      "depends_on": [
+        "server"
+      ]
+    },
+    {
+      "id": "tests",
+      "title": "Automated unit and integration tests",
+      "depends_on": [
+        "server"
+      ]
+    },
+    {
+      "id": "docs",
+      "title": "README, environment template, dev workflow",
+      "depends_on": [
+        "entry"
+      ]
+    }
+  ],
+  "verification": {
+    "attempts": 1,
+    "checks": [
+      {
+        "name": "compileall",
+        "passed": true,
+        "executed": true,
+        "detail": "clean"
+      },
+      {
+        "name": "generated-project-tests",
+        "passed": true,
+        "executed": true,
+        "detail": "test_crud_roundtrip (test_app.EndToEndTests.test_crud_roundtrip) ... ok\ntest_health (test_app.EndToEndTests.test_health) ... ok\ntest_method_not_allowed (test_app.EndToEndTests.test_method_not_allowed) ... ok\ntest_persistence_across_restart (test_app.EndToEndTests.test_persistence_across_restart) ... ok\ntest_ui_page_served (test_app.EndToEndTests.test_ui_page_served) ... ok\ntest_unknown_resource_and_route (test_app.EndToEndTests.test_unknown_resource_and_route) ... ok\ntest_validation_rejects_bad_payloads (test_app.EndToEndTests.test_validation_rejects_bad_payloads) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 1.027s\n\nOK\n"
+      },
+      {
+        "name": "secret-scan",
+        "passed": true,
+        "executed": true,
+        "detail": "no hardcoded credentials found"
+      }
+    ]
+  },
+  "blocked_reason": "",
+  "slug": "personal-task-tracker",
+  "repair_budget": 2,
+  "repairs_used": 0
+}

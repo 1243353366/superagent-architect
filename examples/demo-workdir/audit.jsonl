@@ -1,0 +1,6 @@
+{"ts": "2026-10-20T23:25:02+0000", "action": "intake_accepted", "slug": "personal-task-tracker", "language": "python", "capabilities": ["create tasks with a title and notes", "mark tasks as done", "delete tasks"]}
+{"ts": "2026-10-20T23:25:02+0000", "action": "spec_built", "entities": ["task"], "endpoints": 6, "exclusions": ["team collaboration, sharing, cloud sync"], "provider": "deterministic derivation (no model provider configured)", "questions": []}
+{"ts": "2026-10-20T23:25:02+0000", "action": "planned", "tasks": ["models", "storage", "validation", "api", "ui", "server", "entry", "tests", "docs"]}
+{"ts": "2026-10-20T23:25:02+0000", "action": "generated", "files": [".env.example", ".gitignore", "Makefile", "README.md", "app/__init__.py", "app/api.py", "app/main.py", "app/resources.py", "app/storage.py", "app/ui.py", "app/validation.py", "requirements.txt", "run.py", "tests/test_app.py"], "profile": "python-stdlib-sqlite"}
+{"ts": "2026-10-20T23:25:03+0000", "action": "verified", "passed": true, "checks": [{"name": "compileall", "passed": true, "executed": true}, {"name": "generated-project-tests", "passed": true, "executed": true}, {"name": "secret-scan", "passed": true, "executed": true}]}
+{"ts": "2026-10-20T23:25:52+0000", "action": "delivered_github", "repo": "https://github.com/1243353366/saarch-demo-task-tracker", "files": 13}

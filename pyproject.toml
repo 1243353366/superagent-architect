@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "superagent-architect"
+version = "0.1.0"
+description = "Autonomous application architect: five-input specification to verified, portable, GitHub-ready application."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [{ name = "aadi shankar" }]
+keywords = ["agent", "code-generation", "scaffold", "verification", "github"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Software Development :: Code Generators",
+]
+dependencies = []  # core is stdlib-only by design
+
+[project.optional-dependencies]
+llm = ["litellm"]
+github = ["PyGithub"]
+dev = ["ruff"]
+
+[project.scripts]
+saarch = "saarch.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["saarch*"]
