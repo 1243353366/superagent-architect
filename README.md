@@ -505,6 +505,12 @@ engine.immune_memory({"pattern_signatures": ["automation_trust"]})
 #    exhibited this theme, across unrelated incidents
 ```
 
+When a suite run fails, `python -m saarch.suite_ledger tests.test_x`
+routes it through the failure ledger (capability
+C-suite-failure-ledger): the failing test's name and full output are
+appended to `benchmarks/results/suite-failures.jsonl`, so the next
+intermittent failure arrives with evidence instead of vanishing.
+
 Recurring themes (`assumption_mismatch`, `verification_failure`,
 `automation_trust`, `naming_ambiguity`, ...) are how the system
 recognizes a pathogen it has seen before. Four failures are currently

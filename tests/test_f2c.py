@@ -8,6 +8,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+SCAN = {"adult": "what happened", "child": "explained simply",
+        "chicken": "what happened immediately before",
+        "egg": "the condition that made it possible",
+        "farmer": "what the system should change"}
+
+
 from saarch.f2c import (F2CError, F2C_SCHEMA_VERSION,          # noqa: E402
                         FailureToCapabilityEngine, Store, run_isolated,
                         sha256_file)
@@ -311,6 +317,7 @@ class FWBCImmuneMemory(unittest.TestCase):
         self.engine = FailureToCapabilityEngine(
             Path(self.tmp.name) / "s.jsonl", Path(self.tmp.name))
         self.model = {
+            "archetype_scan": SCAN,
             "fwbc_id": "FWBC-TEST-1", "schema_version": F2C_SCHEMA_VERSION,
             "created_at": "2026-10-21T00:00:00Z",
             "incident_ref": "F-X", "incident_class": "assumption_failure",
@@ -399,3 +406,243 @@ class IsoformatZSuffix(unittest.TestCase):
         self.assertEqual(dt.tzinfo is not None, True)
         self.assertEqual(dt.year, 2026)
         self.assertEqual(_utc("2026-10-21T00:00:00+00:00"), dt)
+
+
+class FWBCQualityGates(unittest.TestCase):
+    """The three maturity risks get executable answers: causal
+    discipline (shallow digests refused), retrieval precision (class
+    and signature must BOTH match — no false matches on superficial
+    similarity), and disposition idempotence (replay cannot duplicate
+    the audit trail)."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.engine = FailureToCapabilityEngine(
+            Path(self.tmp.name) / "s.jsonl", Path(self.tmp.name))
+
+    def model(self, fwbc_id, cls, signatures):
+        return {
+            "archetype_scan": SCAN,
+            "fwbc_id": fwbc_id, "schema_version": F2C_SCHEMA_VERSION,
+            "created_at": "2026-10-21T00:00:00Z", "incident_ref": "F-X",
+            "incident_class": cls, "incident_summary": fwbc_id,
+            "conditions": ["c1"], "root_causes": ["r1"],
+            "assumptions": ["a1"], "trigger_factors": [],
+            "environmental_factors": [], "behavioral_factors": [],
+            "antibodies": [{"name": fwbc_id + "-ab",
+                            "description": "d", "detection_rule": "dr",
+                            "mitigation": "m", "status": "proposed"}],
+            "repurposed_uses": [], "pattern_signatures": signatures,
+            "confidence": 0.5}
+
+    def test_five_layer_scan_required(self):
+        """No scan, no digest: adult/child/chicken/egg/farmer are
+        mandatory, and an empty Farmer answer is refused — 'why does
+        this farm keep producing bad eggs' must be answered."""
+        bad = self.model("FWBC-S1", "assumption_failure", ["x"])
+        bad.pop("archetype_scan")
+        with self.assertRaises(F2CError):
+            self.engine.analyze_incident(bad)
+        empty_farmer = self.model("FWBC-S2", "assumption_failure", ["x"])
+        empty_farmer["archetype_scan"] = dict(SCAN, farmer="  ")
+        with self.assertRaises(F2CError):
+            self.engine.analyze_incident(empty_farmer)
+
+    def test_shallow_digest_without_root_causes_refused(self):
+        bad = self.model("FWBC-Q1", "assumption_failure",
+                         ["automation_trust"])
+        bad["root_causes"] = []
+        with self.assertRaises(F2CError):
+            self.engine.analyze_incident(bad)
+
+    def test_retrieval_requires_class_and_signature_match(self):
+        self.engine.analyze_incident(self.model(
+            "FWBC-Q2", "assumption_failure", ["automation_trust"]))
+        self.engine.analyze_incident(self.model(
+            "FWBC-Q3", "monitoring_failure", ["automation_trust"]))
+        # same signature, different class: no false match
+        hit = self.engine.immune_memory(
+            {"pattern_signatures": ["automation_trust"],
+             "incident_class": "assumption_failure"})
+        self.assertEqual([m["fwbc_id"] for m in hit["models"]],
+                         ["FWBC-Q2"])
+        # superficial similarity alone returns BOTH — the caller gets
+        # candidates to judge, never silently applied fixes; and an
+        # unrelated signature returns nothing
+        both = self.engine.immune_memory(
+            {"pattern_signatures": ["automation_trust"]})
+        self.assertEqual(len(both["models"]), 2)
+        none_ = self.engine.immune_memory(
+            {"pattern_signatures": ["indexing_error"]})
+        self.assertEqual(none_["models"], [])
+
+    def test_disposition_replay_does_not_duplicate(self):
+        self.engine.record_disposition("F-X", "observed", "why")
+        self.engine.record_disposition("F-X", "observed", "why")
+        dupes = [r for r in self.engine.store.records
+                 if r.get("record_kind") == "disposition"]
+        self.assertEqual(len(dupes), 1)
+
+    def test_malformed_store_fails_closed(self):
+        store_path = Path(self.tmp.name) / "s.jsonl"
+        store_path.write_text('{"hash": "x", "record": {"a": 1\n')
+        with self.assertRaises(F2CError):
+            FailureToCapabilityEngine(store_path, Path(self.tmp.name))
+
+
+class HumanGuidedGaps(unittest.TestCase):
+    """Human-guided uncertainty resolution: detection, selective
+    questioning, decision integrity, silence-is-not-approval, failed
+    verification, replay safety, and authorization boundaries."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.engine = FailureToCapabilityEngine(
+            Path(self.tmp.name) / "s.jsonl", Path(self.tmp.name))
+
+    def _gap(self, gap_id="G-T", **over):
+        g = {
+            "gap_id": gap_id, "schema_version": F2C_SCHEMA_VERSION,
+            "created_at": "2026-10-21T00:00:00Z",
+            "gap_class": "missing_regression_coverage",
+            "subject": "F-ZOMBIE-Z2",
+            "plain_language": "One test was watching two fixed bugs. "
+                              "If someone breaks the part that keeps "
+                              "answered questions from being changed, "
+                              "nothing would notice. We need a second "
+                              "test.",
+            "known_facts": ["Z2 retired behind Z1's test"],
+            "unknowns": [],
+            "assumptions": ["the two guards can be mutated "
+                            "independently"],
+            "competing_hypotheses": [],
+            "consequences": "a Z2 regression could ship silently",
+            "uncertainty": 0.2,
+            "safety_impact": "S2",
+            "recurrence": 1,
+            "human_resolvable": True,
+            "recommended_options": ["dedicated regression test",
+                                    "accept shared coverage"],
+            "status": "open"}
+        g.update(over)
+        return g
+
+    def test_gap_detection_and_validation(self):
+        rec = self.engine.open_gap(self._gap())
+        self.assertEqual(rec["gap_id"], "G-T")
+        self.assertIs(rec, self.engine.open_gap(self._gap()))
+        with self.assertRaises(F2CError):
+            self.engine.open_gap(self._gap("G-T2", status="answered"))
+        with self.assertRaises(F2CError):
+            self.engine.open_gap(
+                self._gap("G-T3", gap_class="weird"))
+        with self.assertRaises(F2CError):
+            self.engine.open_gap(
+                self._gap("G-T4", recommended_options=[]))
+        with self.assertRaises(F2CError):
+            self.engine.open_gap(
+                self._gap("G-T5", plain_language="  "))
+
+    def test_selective_questioning_ranks_the_inbox(self):
+        self.engine.open_gap(self._gap("G-A", safety_impact="S1",
+                                       uncertainty=0.5))
+        self.engine.open_gap(self._gap("G-B", safety_impact="S3",
+                                       uncertainty=0.9))
+        self.engine.open_gap(self._gap("G-C", safety_impact="S2",
+                                       human_resolvable=False))
+        inbox = self.engine.pending_questions()
+        self.assertEqual([g["gap_id"] for g in inbox], ["G-A", "G-B"],
+                         "safety first, uncertainty second, "
+                         "machine-resolvable gaps excluded")
+        self.assertEqual(self.engine.pending_questions(limit=1)[0]
+                         ["gap_id"], "G-A")
+
+    def test_silence_is_not_approval(self):
+        self.engine.open_gap(self._gap())
+        with self.assertRaises(F2CError):
+            self.engine.verify_gap_closure(
+                "G-T", "v", True, {})
+        gap = self.engine.store.find("gap_id", "G-T")
+        self.assertEqual(gap["status"], "open",
+                         "no answer, no movement — ever")
+
+    def test_decision_integrity(self):
+        self.engine.open_gap(self._gap())
+        d = self.engine.answer_gap("G-T", "Z2 must have its own test",
+                                   "dedicated regression test")
+        self.assertEqual(d["authority"], "human")
+        self.assertIs(d, self.engine.answer_gap(
+            "G-T", "Z2 must have its own test",
+            "dedicated regression test"))     # idempotent replay
+        with self.assertRaises(F2CError):
+            self.engine.answer_gap("G-T", "actually, shared is fine",
+                                   "accept shared coverage")
+        gap = self.engine.store.find("gap_id", "G-T")
+        self.assertEqual(gap["status"], "answered",
+                         "the decision alone closes nothing — only "
+                         "passing verification does")
+        # and a passing verification is what closes it
+        ok = self.engine.verify_gap_closure(
+            "G-T", "regression-suite", True,
+            {"detail": "dedicated Z2 regression green"})
+        self.assertTrue(ok["passed"])
+        self.assertEqual(
+            self.engine.store.find("gap_id", "G-T")["status"],
+            "closed")
+
+    def test_failed_verification_then_recovery(self):
+        self.engine.open_gap(self._gap())
+        self.engine.answer_gap("G-T", "Z2 must have its own test",
+                               "dedicated regression test")
+        fail = self.engine.verify_gap_closure(
+            "G-T", "independence-matrix", False,
+            {"detail": "mutation broke both scenarios"})
+        self.assertFalse(fail["passed"])
+        gap = self.engine.store.find("gap_id", "G-T")
+        self.assertEqual(gap["status"], "answered",
+                         "failed verification leaves the gap open")
+        ok = self.engine.verify_gap_closure(
+            "G-T", "independence-matrix", True,
+            {"detail": "each mutant breaks exactly one scenario"})
+        self.assertTrue(ok["passed"])
+        self.assertEqual(
+            self.engine.store.find("gap_id", "G-T")["status"],
+            "closed")
+
+    def test_engine_cannot_forge_the_human_channel(self):
+        import json as _json
+        path = Path(self.tmp.name) / "forge.jsonl"
+        path.write_text(_json.dumps({
+            "hash": "irrelevant", "record": {
+                "record_kind": "human_decision",
+                "schema_version": F2C_SCHEMA_VERSION,
+                "gap_id": "G-X", "decision": "x",
+                "selected_option": "y",
+                "authority": "engine", "at": "2026-10-21T00:00:00Z"}}
+        ) + "\n")
+        from saarch.f2c import Store
+        with self.assertRaises(F2CError):
+            Store(path)
+
+    def test_schema_drift_in_gap_rows_fails_closed(self):
+        import json as _json
+        path = Path(self.tmp.name) / "drift.jsonl"
+        path.write_text(_json.dumps({
+            "hash": "irrelevant", "record": {
+                "gap_id": "G-X", "schema_version": F2C_SCHEMA_VERSION,
+                "created_at": "2026-10-21T00:00:00Z",
+                "gap_class": "unknown_future_class",
+                "subject": "F-X", "plain_language": "p",
+                "known_facts": [], "unknowns": [], "assumptions": [],
+                "competing_hypotheses": [], "consequences": "c",
+                "uncertainty": 0.5, "safety_impact": "S1",
+                "recurrence": 0, "human_resolvable": True,
+                "recommended_options": ["a"], "status": "open"}}
+        ) + "\n")
+        from saarch.f2c import Store
+        with self.assertRaises(F2CError):
+            Store(path)

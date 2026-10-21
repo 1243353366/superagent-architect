@@ -201,6 +201,20 @@ class Store:
                     f"store contains schema_version {version!r}; this "
                     f"engine supports {F2C_SCHEMA_VERSION} — refusing to "
                     "silently coerce or migrate records")
+            # schema-drift prevention for the human-guided layer: every
+            # record kind is re-validated at load, fail-closed
+            if (row.get("record_kind") is None
+                    and "gap_id" in row):
+                validate_gap(row)
+            elif "fwbc_id" in row:
+                validate_fwbc(row)
+            elif row.get("record_kind") == "human_decision":
+                if row.get("authority") != "human":
+                    raise F2CError("human_decision row without "
+                                   "authority='human' — engine-authored "
+                                   "decisions are forbidden; the human "
+                                   "channel cannot be forged from "
+                                   "inside the store")
 
     def verify_file(self) -> List[str]:
         """Recompute the whole chain from disk. Returns [] when intact."""
@@ -275,7 +289,7 @@ PATTERN_THEMES = ("assumption_mismatch", "verification_failure",
                   "automation_trust", "naming_ambiguity", "indexing_error",
                   "communication_gap", "tool_misuse", "specification_drift",
                   "hidden_dependency")
-FWBC_REQUIRED = ("fwbc_id", "schema_version", "created_at",
+FWBC_REQUIRED = ("fwbc_id", "archetype_scan", "schema_version", "created_at",
                  "incident_ref", "incident_class", "incident_summary",
                  "conditions", "root_causes", "assumptions",
                  "trigger_factors", "environmental_factors",
@@ -286,6 +300,17 @@ FWBC_REQUIRED = ("fwbc_id", "schema_version", "created_at",
 def validate_fwbc(record: Dict[str, Any]) -> Dict[str, Any]:
     _check(record, FWBC_REQUIRED, FWBC_REQUIRED + ("blame_free_note",),
            "fwbc condition model")
+    # the five-layer scan is mandatory: adult (what happened), child
+    # (simply), chicken (immediately before), egg (what condition made
+    # it possible), farmer (what system should change)
+    scan = record.get("archetype_scan")
+    layers = ("adult", "child", "chicken", "egg", "farmer")
+    if not isinstance(scan, dict) or set(scan) != set(layers) or \
+            any(not str(scan[k]).strip() for k in layers):
+        raise F2CError("every incident digest must answer all five "
+                       "layers: adult, child, chicken, egg, farmer — "
+                       "the Farmer layer (what system should change) "
+                       "is where continuous improvement lives")
     if record["incident_class"] not in FWBC_CLASSES:
         raise F2CError(f"incident_class {record['incident_class']!r} not "
                        f"in {FWBC_CLASSES} — classify before digesting")
@@ -296,6 +321,10 @@ def validate_fwbc(record: Dict[str, Any]) -> Dict[str, Any]:
     if not record["conditions"]:
         raise F2CError("a condition model without conditions is an "
                        "undiagnosed failure — refuse it")
+    if not record["root_causes"]:
+        raise F2CError("a condition model without root causes stopped "
+                       "asking 'what condition made this possible?' "
+                       "too early — refuse a shallow digest")
     for ab in record["antibodies"]:
         need = ("name", "description", "detection_rule", "mitigation",
                 "status")
@@ -308,6 +337,56 @@ def validate_fwbc(record: Dict[str, Any]) -> Dict[str, Any]:
     conf = record["confidence"]
     if not (isinstance(conf, float) and 0.0 <= conf <= 1.0):
         raise F2CError("confidence must be a float in [0, 1]")
+    return record
+
+
+# ------------------------- human-guided uncertainty resolution
+# Facts, AI hypotheses, human decisions, and verification results are
+# stored as SEPARATE record kinds in the same hash-chained store.
+# The gap record is an inspectable explanation: known facts (linked
+# to evidence), unknowns, and AI assumptions labeled as hypotheses —
+# never a claim that AI reasoning is proof. Silence is never approval;
+# a human decision defines intent but proves nothing technically and
+# authorizes nothing beyond existing permissions. A gap closes ONLY
+# with a human decision AND a passing independent verification.
+
+GAP_CLASSES = ("evidence_gap", "ambiguous_requirement",
+               "competing_hypotheses", "missing_regression_coverage",
+               "unvalidated_mitigation")
+GAP_STATUSES = ("open", "answered", "verified", "closed")
+SAFETY_RANK = {"S1": 0, "S2": 1, "S3": 2}
+
+
+def validate_gap(record: Dict[str, Any]) -> Dict[str, Any]:
+    need = ("gap_id", "schema_version", "created_at", "gap_class",
+            "subject", "plain_language", "known_facts", "unknowns",
+            "assumptions", "competing_hypotheses", "consequences",
+            "uncertainty", "safety_impact", "recurrence",
+            "human_resolvable", "recommended_options", "status")
+    _check(record, need, need, "uncertainty gap")
+    if not record["plain_language"].strip():
+        raise F2CError("plain_language is required — a human must be "
+                       "able to read what is missing and why it "
+                       "matters without seeing the machinery")
+    if not record["consequences"].strip():
+        raise F2CError("consequences are required — what happens if "
+                       "this gap stays open")
+    if record["gap_class"] not in GAP_CLASSES:
+        raise F2CError(f"gap_class {record['gap_class']!r} not in "
+                       f"{GAP_CLASSES}")
+    if record["safety_impact"] not in SAFETY_RANK:
+        raise F2CError(f"safety_impact {record['safety_impact']!r} not "
+                       f"in {sorted(SAFETY_RANK)}")
+    if not (isinstance(record["uncertainty"], float)
+            and 0.0 <= record["uncertainty"] <= 1.0):
+        raise F2CError("uncertainty must be a float in [0, 1]")
+    if not (isinstance(record["recurrence"], int)
+            and record["recurrence"] >= 0):
+        raise F2CError("recurrence must be a non-negative int")
+    if record["human_resolvable"] and not record["recommended_options"]:
+        raise F2CError("a human-resolvable gap must offer recommended "
+                       "options — an empty question wastes the "
+                       "human's attention")
     return record
 
 
@@ -413,6 +492,119 @@ class FailureToCapabilityEngine:
         antibodies = sorted({ab["name"] for m in models
                              for ab in m["antibodies"]})
         return {"models": models, "antibodies": antibodies}
+
+    # ------------------ human-guided uncertainty resolution
+    def open_gap(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        """Register a detected gap: unresolved evidence gaps, ambiguous
+        requirements, competing hypotheses, missing regression
+        coverage, unvalidated mitigations. Idempotent on gap_id; opens
+        as 'open' — silence is never approval, so nothing else moves
+        the status."""
+        validate_gap(record)
+        if record["status"] != "open":
+            raise F2CError("gaps open as 'open' — closure requires a "
+                           "human decision AND passing verification")
+        for r in self.store.records:
+            if r.get("gap_id") == record["gap_id"] and \
+                    "gap_id" in r:
+                if r == record:
+                    return r                # idempotent replay
+                raise F2CError(f"gap_id {record['gap_id']!r} exists "
+                               "with different content — refusing to "
+                               "fork the gap")
+        return self.store.append(record)
+
+    def answer_gap(self, gap_id: str, decision: str,
+                   selected_option: str) -> Dict[str, Any]:
+        """Record a HUMAN decision as its own record kind. The engine
+        never authors these rows; the decision defines intent only —
+        it neither proves technical correctness nor authorizes
+        anything beyond existing permissions. 'open' becomes
+        'answered'; the gap is NOT closed."""
+        gap = self.store.find("gap_id", gap_id)
+        if gap is None or "gap_id" not in gap:
+            raise F2CError(f"unknown gap {gap_id!r}")
+        if gap["status"] not in ("open", "answered"):
+            raise F2CError(f"gap {gap_id} is {gap['status']} — "
+                           "verified or closed gaps accept no new "
+                           "decisions")
+        for r in self.store.records:
+            if (r.get("record_kind") == "human_decision"
+                    and r.get("gap_id") == gap_id):
+                if (r["decision"] == decision
+                        and r["selected_option"] == selected_option):
+                    return r                # idempotent replay
+                raise F2CError("a different human decision already "
+                               "exists for this gap — refusing to "
+                               "fork the decision")
+        count = sum(1 for r in self.store.records
+                    if r.get("record_kind") == "human_decision")
+        row = {"record_kind": "human_decision",
+               "decision_id": f"H-{count + 1}",
+               "schema_version": F2C_SCHEMA_VERSION,
+               "gap_id": gap_id, "decision": decision,
+               "selected_option": selected_option,
+               "authority": "human", "at": _now()}
+        self.store.append(row)
+        gap["status"] = "answered"
+        self.record_disposition(gap_id, "answered", decision[:200],
+                                selected_option=selected_option)
+        return row
+
+    def verify_gap_closure(self, gap_id: str, name: str, passed: bool,
+                           evidence: Dict[str, Any]) -> Dict[str, Any]:
+        """Independent mechanical verification — its own record kind,
+        separate from facts, AI hypotheses, and human decisions. A
+        gap closes ONLY with a human decision AND a passing
+        verification; a failed verification is recorded honestly and
+        leaves the gap open for re-work."""
+        gap = self.store.find("gap_id", gap_id)
+        if gap is None or "gap_id" not in gap:
+            raise F2CError(f"unknown gap {gap_id!r}")
+        if gap["status"] != "answered":
+            raise F2CError(f"gap {gap_id} is {gap['status']} — "
+                           "verification cannot replace the human "
+                           "decision, and silence is not approval")
+        for r in self.store.records:
+            if (r.get("record_kind") == "verification_result"
+                    and r.get("gap_id") == gap_id
+                    and r.get("name") == name
+                    and r.get("passed") == bool(passed)
+                    and r.get("evidence") == evidence):
+                return r                # idempotent replay
+        count = sum(1 for r in self.store.records
+                    if r.get("record_kind") == "verification_result")
+        row = {"record_kind": "verification_result",
+               "verification_id": f"V-{count + 1}",
+               "schema_version": F2C_SCHEMA_VERSION,
+               "gap_id": gap_id, "name": name,
+               "passed": bool(passed), "evidence": evidence,
+               "at": _now()}
+        self.store.append(row)
+        if passed:
+            gap["status"] = "closed"
+            self.record_disposition(
+                gap_id, "closed",
+                "human decision plus passing independent verification")
+        else:
+            self.record_disposition(
+                gap_id, "verification_failed",
+                "recorded honestly; the gap stays open for re-work")
+        return row
+
+    def pending_questions(self,
+                          limit: Optional[int] = None) -> List[Any]:
+        """The human's ranked inbox: open, human-resolvable gaps sorted
+        by safety impact, then uncertainty, then recurrence. Non-
+        resolvable gaps are excluded — the human is only asked what
+        human input can actually resolve."""
+        gaps = [r for r in self.store.records
+                if "gap_id" in r and r.get("record_kind") is None
+                and r["status"] == "open" and r["human_resolvable"]]
+        gaps.sort(key=lambda g: (SAFETY_RANK[g["safety_impact"]],
+                                 -g["uncertainty"],
+                                 -g["recurrence"]))
+        return gaps[:limit] if limit else gaps
 
     def set_status(self, failure_id: str, to: str) -> Dict[str, Any]:
         rec = self.store.find("failure_id", failure_id)

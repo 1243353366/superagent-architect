@@ -257,6 +257,28 @@ class IncidentArtifact(unittest.TestCase):
         cls.report = json.loads(
             (ROOT / "benchmarks/results/f2c-incident-patch.json").read_text())
 
+    def test_ledger_capability_validated_and_cited(self):
+        """C-suite-failure-ledger is validated in the committed report;
+        the FWBC-006 antibody honestly claims 'implemented' citing it;
+        the flake's root cause stays a hypothesis in the store."""
+        self.assertEqual(
+            self.report["two_outputs"]["capabilities"]
+            ["C-suite-failure-ledger"], "validated")
+        rows = [json.loads(line)["record"] for line in
+                (ROOT / "benchmarks/results/failures.jsonl")
+                .read_text().splitlines()]
+        flake = [r for r in rows
+                 if r.get("fwbc_id") == "FWBC-006"]
+        self.assertEqual(len(flake), 1)
+        ab = [a for a in flake[0]["antibodies"]
+              if a["name"] == "suite-failure-ledger"]
+        self.assertEqual(len(ab), 1)
+        self.assertEqual(ab[0]["status"], "implemented")
+        self.assertEqual(ab[0]["capability_id"],
+                         "C-suite-failure-ledger")
+        self.assertTrue(flake[0]["root_causes"][0].startswith("unknown"),
+                        "flake root cause must stay a hypothesis")
+
     def test_two_outputs_exist(self):
         outs = self.report["two_outputs"]
         self.assertTrue(outs["corrected_system"])

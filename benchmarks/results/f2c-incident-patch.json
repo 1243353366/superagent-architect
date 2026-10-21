@@ -1,8 +1,8 @@
 {
  "schema_version": "1.0",
- "generated_at": "2026-10-21T18:17:39.880263+00:00",
+ "generated_at": "2026-10-21T18:45:34.348106+00:00",
  "incident": "F-CI-ANCHOR-2026",
- "store_head": "4ee82ce16f475cb96984d5ef69c70aad75de5a36f2c95033d2fc31aafe132312",
+ "store_head": "2d56c3d93dadd83c77135d8a312b834d305a9f0e3f083a34dd30f890be9ffdf6",
  "evidence_immutable": {
   "fixture_sha256": "16ec0a9cdb5c5c6f",
   "store_verify": true
@@ -15,6 +15,9 @@
   ],
   "capabilities": {
    "C-patch-integrity": "validated",
+   "C-suite-failure-ledger": "validated",
+   "C-z1-evidence-gate": "validated",
+   "C-z2-question-immutability": "validated",
    "C-incident-regression": "validated"
   }
  },
@@ -77,8 +80,8 @@
    }
   ],
   "passed": true,
-  "wall_seconds": 1.588,
-  "evaluated_at": "2026-10-21T18:17:39.762939+00:00"
+  "wall_seconds": 1.603,
+  "evaluated_at": "2026-10-21T18:45:34.236705+00:00"
  },
  "rejected_experiments": [
   {
@@ -153,13 +156,44 @@
    "C-hostile-schema-bypass",
    "C-hostile-trusted",
    "C-z3-regression-guard",
+   "C-suite-failure-ledger",
+   "C-z1-evidence-gate",
+   "C-z2-question-immutability",
    "C-patch-integrity",
    "C-incident-regression",
    "C-probe-unvalidated",
    "C-step-presence-grep"
   ],
-  "durable_dispositions": 12,
+  "durable_dispositions": 20,
   "note": "zombies, historical bugs, and this incident \u2014 one append-only, hash-chained database; query it with FailureToCapabilityEngine.retrieve() or .dispositions(ref)"
+ },
+ "human_guided": {
+  "closed_gaps": [
+   {
+    "gap_id": "G-001",
+    "plain_language": "Two bugs were fixed, but only one test was watching them. We added the second test and proved each watches its own bug.",
+    "decision_id": "H-1",
+    "decision": "Owner direction (2026-10-21): the goal is to make each failure independently reproducible, independently detectable, and independently traceable to a validated capability \u2014 shared coverage leaves a blind spot if the suite passes when only one behavior is broken",
+    "verification_id": "V-1",
+    "verification_passed": true,
+    "converted_to": [
+     "tests/test_zombie_regressions.py::test_z2 (dedicated regression)",
+     "tests/test_zombie_independence.py (mutation matrix)",
+     "capabilities C-z1-evidence-gate and C-z2-question-immutability, each validated"
+    ]
+   }
+  ],
+  "open_gaps": [
+   {
+    "gap_id": "G-002",
+    "subject": "F-SUITE-FLAKE",
+    "status": "open",
+    "in_human_inbox": false,
+    "why": "not human-resolvable: it needs captured machine evidence, not a human decision"
+   }
+  ],
+  "pending_inbox_plain": [],
+  "rules": "human decisions define intent and authorize nothing beyond existing permissions; closure requires a decision AND passing verification; silence is never approval"
  },
  "immune_memory": {
   "condition_models": [
@@ -176,12 +210,12 @@
    "operator-chain-fail-stop",
    "patch-application-confirmation",
    "postcondition-placement-check",
-   "question-immutability",
    "rollback-restores-checkpoint",
    "suffix-rule-coverage",
    "suite-failure-ledger",
    "version-matrix-in-ci",
-   "z-suffix-normalization"
+   "z-suffix-normalization",
+   "zero-evidence-certification-refusal"
   ],
   "recurring_themes": [
    "assumption_mismatch",
@@ -194,7 +228,7 @@
  },
  "generalizes": true,
  "generalization_note": "held-out workflow unseen in incident evidence and regression tests",
- "wall_seconds": 1.71,
+ "wall_seconds": 4.82,
  "post_write_verification": {
   "suite": "tests.test_patching (full, incl. IncidentArtifact and ExtendedValidation)",
   "passed": true
