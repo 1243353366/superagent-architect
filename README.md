@@ -276,6 +276,79 @@ a new bypass class, or a new incident from real work. FWBC exists
 to make failure survivable and useful, not to promise that nothing
 can ever fail.
 
+## Known Gaps and Limitations (current verified state)
+
+State snapshot, every fact re-checked against the failure database
+(`benchmarks/results/failures.jsonl`) for this commit — not assumed
+from earlier reports. Existing documentation above is preserved.
+
+### G-002 — original suite failure: UNRESOLVED
+
+Verified:
+- The capture harness (`python -m saarch.suite_ledger discover`)
+  runs the real suite with fixtures respected (timed
+  TextTestResult, repo-root top_level_dir) and, on any failure,
+  appends a full-context ledger row to
+  `benchmarks/results/suite-failures.jsonl`: failing test ids,
+  full error output, per-test durations, Python and platform.
+  Green runs leave no row, so every row is real evidence.
+- Two defects in the harness itself were found and fixed using its
+  own ledger rows as evidence (retired as F-CAPTURE-HARNESS behind
+  `tests/test_suite_ledger.py::SuiteLedgerDiscovery`
+  `.test_fixtures_are_respected`).
+- 22 consecutive clean runs through the aligned harness.
+
+Not claimed: 22 clean runs do not prove the original failure is
+resolved. The original intermittent failure has never been captured
+with evidence; it stays open until captured with sufficient
+evidence, or closed under a separately justified, verified
+criterion.
+
+Investigating the next occurrence: run
+`python -m saarch.suite_ledger discover` after any suite failure;
+the ledger row gives the failing id, the full error, and per-test
+timings — enough to reproduce or meaningfully narrow the cause.
+
+### F-GATE-CHAIN — release integrity
+
+Verified protections (bypass lab, `tests/test_gate_bypass.py`):
+- attestation bypass: the marker must be present as a whole word
+  in the commit message;
+- skipped-gate bypass: ci.yml must still run the gate — removing
+  the step is detected as a bypass;
+- misleading-claim bypass: the committed release-claims file is
+  re-verified against the repository, so a pasted marker with
+  stale or false claims fails.
+The gate has already blocked its own broken CI run (39660706405).
+
+Remaining trust boundary: coordinated changes to the CI workflow
+and the acceptance logic can only be stopped by human review of
+the diff. That is where the chain of trust ends, and it is stated
+here rather than hidden.
+
+Database state, exactly as it stands: the retirement-review
+machinery is implemented and tested (a zombie never certifies its
+own retirement). Review RR-GATE-1 with outcome
+`resolved_protection_retained` is on record in the database — the
+incident retires, the guard remains. But the originating
+F-GATE-CHAIN failure record itself has NOT been formally
+transitioned to retired: it remains in `observed` status under its
+recorded closing criterion, and no formal retirement is claimed.
+The release gate remains a permanent safeguard regardless of the
+incident record's status.
+
+### Verified vs hypothesized vs unresolved
+
+- Verified: five-layer scans (fail-closed), joint database
+  integrity, goal guard with four registered directives, console
+  MFA end-to-end, release-gate protections, capture-harness
+  behavior, reproducible acceptance bound to the commit.
+- Unresolved: G-002 (never captured); the formal F-GATE-CHAIN
+  record transition (review recorded, transition not performed).
+- Hypothesis (explicitly unconfirmed): the historical intermittent
+  suite failures may share one root cause; no hypothesis is
+  treated as confirmed without a captured ledger row.
+
 ## Credits
 
 - AI gateway integration: [OpenProvider](https://github.com/OpenProviderAi/OpenProvider)
