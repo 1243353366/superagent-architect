@@ -1,0 +1,47 @@
+[
+ {
+  "item": "cancel-refund",
+  "request": "Members can cancel their subscription anytime without penalty. Members who cancel receive a refund for the current period.",
+  "content": "{\"ambiguous_aspects\":[\"definition of 'current period'\",\"refund amount calculation\",\"refund method and timing\"],\"clarifications_needed\":[\"Is the refund for the remaining days of the current billing cycle or the full period?\",\"What method will the refund be processed through?\",\"Are there any conditions or exceptions to the 'anytime' cancellation policy?\"]}",
+  "seconds": 31.3,
+  "model": "gpt-oss:20b",
+  "attempts": 2,
+  "parsed": {
+   "ambiguous_aspects": [
+    "definition of 'current period'",
+    "refund amount calculation",
+    "refund method and timing"
+   ],
+   "clarifications_needed": [
+    "Is the refund for the remaining days of the current billing cycle or the full period?",
+    "What method will the refund be processed through?",
+    "Are there any conditions or exceptions to the 'anytime' cancellation policy?"
+   ]
+  },
+  "detected": [
+   "cancellation-scope",
+   "refund-scope"
+  ],
+  "gold_matches": [],
+  "status": "ok",
+  "false_positive_ambiguities": []
+ },
+ {
+  "item": "delete-account",
+  "request": "Users can delete their account and their data at any time.",
+  "status": "failed: HTTPError: HTTP Error 429: Too Many Requests",
+  "traceback_tail": "r\n    return self._call_chain(*args)\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/urllib/request.py\", line 496, in _call_chain\n    result = func(*args)\n             ^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/urllib/request.py\", line 643, in http_error_default\n    raise HTTPError(req.full_url, code, msg, hdrs, fp)\nurllib.error.HTTPError: HTTP Error 429: Too Many Requests\n"
+ },
+ {
+  "item": "local-only",
+  "request": "Keep the data local. The app should be fast for everyday use.",
+  "status": "failed: HTTPError: HTTP Error 429: Too Many Requests",
+  "traceback_tail": "r\n    return self._call_chain(*args)\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/urllib/request.py\", line 496, in _call_chain\n    result = func(*args)\n             ^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/urllib/request.py\", line 643, in http_error_default\n    raise HTTPError(req.full_url, code, msg, hdrs, fp)\nurllib.error.HTTPError: HTTP Error 429: Too Many Requests\n"
+ },
+ {
+  "item": "single-clear",
+  "request": "A todo list app with checkboxes and a delete button.",
+  "status": "failed: HTTPError: HTTP Error 429: Too Many Requests",
+  "traceback_tail": "r\n    return self._call_chain(*args)\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/urllib/request.py\", line 496, in _call_chain\n    result = func(*args)\n             ^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/urllib/request.py\", line 643, in http_error_default\n    raise HTTPError(req.full_url, code, msg, hdrs, fp)\nurllib.error.HTTPError: HTTP Error 429: Too Many Requests\n"
+ }
+]

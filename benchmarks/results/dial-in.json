@@ -1,0 +1,56 @@
+{
+ "corpus_items": 4,
+ "policies": {
+  "first_guess": {
+   "questions": 0,
+   "answer_words": 0,
+   "probes": 0,
+   "false_resolutions": 4,
+   "false_certifications": 4,
+   "certified_items": 4
+  },
+  "generic_clarify": {
+   "questions": 5,
+   "answer_words": 110,
+   "probes": 0,
+   "false_resolutions": 0,
+   "false_certifications": 0,
+   "certified_items": 4
+  },
+  "confirmation_testing": {
+   "questions": 0,
+   "answer_words": 0,
+   "probes": 5,
+   "false_resolutions": 4,
+   "false_certifications": 4,
+   "certified_items": 4
+  },
+  "proposed": {
+   "questions": 5,
+   "answer_words": 5,
+   "probes": 3,
+   "false_resolutions": 0,
+   "false_certifications": 0,
+   "certified_items": 4
+  }
+ },
+ "pattern_recall": {
+  "paraphrases": 3,
+  "detected": 1,
+  "recall": 0.333,
+  "misses": [
+   {
+    "paraphrase": "Users may terminate the service at any moment, free of charg",
+    "reason": "no pattern matched (cue-word engine limitation)"
+   },
+   {
+    "paraphrase": "People can wipe their profile whenever they want.",
+    "reason": "no pattern matched (cue-word engine limitation)"
+   }
+  ],
+  "true_negatives": [
+   "A checklist application where entries can be removed."
+  ]
+ },
+ "deterministic": true
+}

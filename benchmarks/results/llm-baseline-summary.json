@@ -1,0 +1,51 @@
+{
+ "baseline": "zero-shot LLM prompting (no candidates, no gate)",
+ "model": "llm7/gpt-oss:20b",
+ "date": "2026-10-21T16:05:57.691539+00:00",
+ "parse_success": "1/4",
+ "schema_compliance": 0.0,
+ "ambiguity_recall_lenient": 0.4,
+ "gold_match_rate": 0.0,
+ "questions_per_item_avg": 0.0,
+ "per_item": [
+  {
+   "item": "cancel-refund",
+   "status": "ok",
+   "detected": [
+    "cancellation-scope",
+    "refund-scope"
+   ],
+   "gold_matches": [],
+   "false_positive_ambiguities": [],
+   "seconds": 31.3,
+   "model": "gpt-oss:20b"
+  },
+  {
+   "item": "delete-account",
+   "status": "failed: HTTPError: HTTP Error 429: Too Many Requests",
+   "detected": null,
+   "gold_matches": null,
+   "false_positive_ambiguities": null,
+   "seconds": null,
+   "model": null
+  },
+  {
+   "item": "local-only",
+   "status": "failed: HTTPError: HTTP Error 429: Too Many Requests",
+   "detected": null,
+   "gold_matches": null,
+   "false_positive_ambiguities": null,
+   "seconds": null,
+   "model": null
+  },
+  {
+   "item": "single-clear",
+   "status": "failed: HTTPError: HTTP Error 429: Too Many Requests",
+   "detected": null,
+   "gold_matches": null,
+   "false_positive_ambiguities": null,
+   "seconds": null,
+   "model": null
+  }
+ ]
+}
