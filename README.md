@@ -271,6 +271,84 @@ no live endpoints, and defenses that are already patched; any forgery is
 detectable at a glance, and cheap-to-rerun repros waste the attacker's
 time and compute, not ours.
 
+## Failure-to-Capability Engine (F2C, schema v1.0)
+
+Failures are the raw material; capabilities are the product. `saarch/f2c.py`
+implements the lifecycle **failure → reproduction → classification →
+candidate → validation → promotion or rejection** with one canonical,
+explicitly versioned schema per record kind:
+
+- **Failure records** (`schema_version 1.0`): controlled failure classes,
+  documented severity scale (S1 containment breach, S2 wrong decision from
+  correct-looking evidence, S3 degraded output), a status machine
+  (observed → reproduced → classified → candidate_created → validated →
+  retired, with `rejected` reachable from any live state), explicit
+  `root_cause` kinds (`confirmed` / `hypothesis` / `unknown` — facts and
+  hypotheses never mix), and provenance with source artifact hashes.
+- **Capability records**: discriminated by `type` (validation_rule,
+  code_fix, strategy, regression_test, retrieval_entry, training_example),
+  each with applicability preconditions, declared permissions (`none`,
+  `sandbox`, or `trusted` — and a candidate that self-declares `trusted`
+  is refused at intake), known limitations, and its own status machine
+  (proposed → under_test → validated → deprecated/retired).
+
+Hard rules, enforced by code and tested adversarially:
+
+- **Fail closed, everywhere.** Unsupported schema versions, unknown
+  fields, naive timestamps, broken fixture references, and hash mismatches
+  are refused at ingestion *and* at load. Nothing is coerced.
+- **The harness owns the verdict.** A candidate cannot arrive with
+  `validation_results`, `regression_results`, or `promotion_history`; it
+  cannot declare itself validated; it cannot choose, skip, or rewrite its
+  validation arms. Promotion requires a harness-produced passing verdict —
+  an LLM label is not evidence.
+- **Evidence is preserved and linked.** The original incident log, the
+  minimized reproduction, and the transformation between them stay
+  hash-linked (see the zombie ledger); retirement requires a real,
+  executable regression test that exists on disk.
+- **Rejection is auditable.** Rejected candidates — including hostile
+  payloads that fail schema validation — stay in the hash-chained store
+  (`benchmarks/results/failures.jsonl`) with the rejection reason.
+- **Isolation.** Candidate validation runs from throwaway repository
+  snapshots with stripped environments and hard timeouts; a candidate that
+  trashes its sandbox leaves the real tree untouched.
+
+### A real run, with a real rejection
+
+`benchmarks/f2c_pipeline.py` feeds the preserved Z3 evidence through the
+engine (`python benchmarks/f2c_pipeline.py`). The run produced both
+terminal outcomes honestly:
+
+- **`C-z3-whole-token-matching` (strategy) — REJECTED.** Its broad claim
+  (ambiguous answers stay open) failed held-out generalization 4/6: two
+  *unseen* traps ("Certainly A-ok to cancel after commitment", "Sure - you
+  can cancel, just not in the way answer A means") resolve wrongly — the
+  token mention overrides the answer's semantics. That is the Z3 defect
+  class surviving in mutated form; the surviving variants are recorded in
+  the report as a finding, not swept under a green checkmark.
+- **`C-z3-regression-guard` (regression test) — VALIDATED and PROMOTED.**
+  The narrow claim the evidence actually supports: executable regression
+  coverage exists, passes in an isolated snapshot, and the stored repro
+  stays contained.
+
+Metrics with denominators (reproduction rate, held-out rate, rejection
+rate, wall time) are written to `benchmarks/results/f2c-report.json`,
+bound to the store's hash chain; the live acceptance report pins that
+file's hash to the exact commit.
+
+### Limitations, stated
+
+- The "vulnerable baseline" validation arm is a synthetic replica of the
+  ledger-documented pre-fix matcher — the repository never retains
+  vulnerable code, so the counterfactual is labeled, not historical.
+- Candidate generation is a deterministic factory in this slice. The
+  LLM-backed generator (same validate-or-reject intake) remains future
+  work; no model-training pipeline exists or is justified by current data.
+- Retrieval similarity is failure-class-based; there is no embedding index,
+  and retrieval quality has not yet been evaluated on labeled examples.
+- The two surviving answer-misparse variants are documented but not yet
+  their own zombie entries.
+
 ## Isolated execution
 
 Nothing the pipeline *executes* runs against your workspace: every
