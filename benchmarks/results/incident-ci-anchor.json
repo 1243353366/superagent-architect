@@ -1,0 +1,18 @@
+{
+ "incident_id": "F-CI-ANCHOR-2026",
+ "detected_at": "2026-10-21T17:47:00Z",
+ "failure_class": "silent_failure",
+ "timeline": [
+  {"commit": "7ec7499",
+   "state": "workflow lacked the governed-run regeneration step; the CI matrix failed on stale revision-bound evidence"},
+  {"commit": "046c192",
+   "claim": "commit message stated both CI jobs regenerate the governed run per revision",
+   "actual": "the workflow patch silently failed to apply: the anchor text did not match the file, the patch script raised AssertionError, but the operator chain continued and a commit was pushed whose message described a step that did not exist",
+   "detection": "manual inspection after CI results review"},
+  {"commit": "3a609ad",
+   "action": "correction commit actually added the step to both jobs and corrected the public record"}
+ ],
+ "workflow_sha256_before_correction": "683738cac0d5bee39e2b02bd34eb3238ef0c1f6046c91b51a77376cbc6554fea",
+ "workflow_sha256_after_correction": "6db4b26efa8216578117ca306fb61581d6b7e3c3e98a7f4ffa0c012a1acf3bce",
+ "note": "original evidence, immutable: corrected versions and hypotheses are new records, never rewrites of this file"
+}

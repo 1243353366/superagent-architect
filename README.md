@@ -432,6 +432,57 @@ persistence beyond the hash-chained artifact (the governance state is
 in-process in this slice), and wiring the release gate into an actual
 deployment target.
 
+## The failure database is a source of engineering improvements
+
+Failures are not a graveyard of bugs. Each reproducible failure produces
+**two outputs**: a corrected system and a reusable capability, validated
+against the original failure, variations of it, the existing regression
+suite, unrelated workflows that could be broken by the mitigation, and
+held-out cases that measure real generalization. Original evidence is
+immutable — hash-bound at ingestion; corrected versions and hypotheses
+are new records, never rewrites of history.
+
+**The loop, demonstrated live on incident F-CI-ANCHOR-2026** (a workflow
+patch whose anchor silently failed to apply while a commit message
+claimed otherwise):
+
+1. **Ingest** (`benchmarks/f2c_incident_patch.py`): the incident,
+   its timeline, and the pre/post-correction workflow hashes enter the
+   hash-chained failure store (`benchmarks/results/failures.jsonl`) with
+   the evidence fixture content-hashed at ingestion.
+2. **Reproduce**: the naive `str.replace` baseline silently no-ops on a
+   missing anchor — the failure class exists without the fix.
+3. **Corrected system**: `saarch/patching.py` — abort-or-apply patching
+   (missing or ambiguous anchor aborts loudly, leaving the file
+   bit-identical), structural postcondition validation (the workflow is
+   grammar-parsed and the required step must exist in the right job,
+   before its consumer — presence is not placement), and
+   claim-to-artifact consistency (stated changes compared against the
+   actual repository before committing).
+4. **Reusable capabilities**: `C-patch-integrity` (code fix) and
+   `C-incident-regression` (regression test) — promoted only after all
+   validation arms passed, recorded as generalizing to an unseen workflow.
+5. **Retire**: the failure retired behind the executable test
+   `tests/test_patching.py::BothPaths.test_invalid_anchor_aborts_loudly_and_leaves_file_unchanged`.
+
+`tests/test_patching.py` (21 tests) covers both paths and the whole
+validation set. The incident report
+(`benchmarks/results/f2c-incident-patch.json`) is pinned by the live
+acceptance report's revision binding.
+
+**On "training the AI":** no model fine-tuning pipeline exists, and the
+current data (two curated failures with deep evidence) does not yet
+justify one. What exists and is tested: validated capabilities with
+applicability conditions and known limitations, retrievable by failure
+class (`FailureToCapabilityEngine.retrieve`) so future operations
+consult the fix before repeating the failure. When the failure corpus
+grows, training-example candidates are the schema's designated path —
+until then, retrieval plus validated strategies is the honest version of
+learning.
+
+**Vocabulary note:** `silent_failure` was added to the failure-class
+vocabulary as a documented backward-compatible extension of schema 1.0.
+
 ## Isolated execution
 
 Nothing the pipeline *executes* runs against your workspace: every

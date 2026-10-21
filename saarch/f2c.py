@@ -28,8 +28,11 @@ from typing import Any, Callable, Dict, List, Optional
 F2C_SCHEMA_VERSION = "1.0"
 GENESIS = "0" * 64
 
+# Backward-compatible vocabulary extension of schema 1.0 (2026-10-21):
+# records with the new value validate; existing stores load unchanged.
 FAILURE_CLASSES = ("answer_parsing", "authorization", "state_integrity",
-                   "data_loss", "schema_drift", "regression", "unknown")
+                   "data_loss", "schema_drift", "regression",
+                   "silent_failure", "unknown")
 SEVERITY_SCALE = {
     "S1": "containment breach: engine failure can reach trusted authority",
     "S2": "wrong decision or certification from correct-looking evidence",

@@ -1,8 +1,8 @@
 {
  "schema_version": "1.0",
- "generated_at": "2026-10-21T17:24:28.496920+00:00",
+ "generated_at": "2026-10-21T17:55:36.643081+00:00",
  "specimen": "F-Z3-answer-misparse (from preserved zombie Z3)",
- "store_head": "bed78ccf3ec042a648c8ce0361c699349cb0389ff996e6ba4194b3bbf7200215",
+ "store_head": "ccf3daeee0e145891bae2d4a4a546b4556414e9b366a6019fada210a0e0283bf",
  "zombie_ledger_sha256": "186c04e46e479d01e27e03a2f33155629e2762749820bee45bcf7cced6affbc9",
  "lifecycle": {
   "failure_status": "retired",
@@ -95,8 +95,8 @@
     }
    ],
    "passed": false,
-   "wall_seconds": 0.205,
-   "evaluated_at": "2026-10-21T17:24:28.296380+00:00"
+   "wall_seconds": 0.207,
+   "evaluated_at": "2026-10-21T17:55:36.435612+00:00"
   },
   "regression_guard_candidate": {
    "arms": [
@@ -122,8 +122,8 @@
     }
    ],
    "passed": true,
-   "wall_seconds": 0.2,
-   "evaluated_at": "2026-10-21T17:24:28.496771+00:00"
+   "wall_seconds": 0.207,
+   "evaluated_at": "2026-10-21T17:55:36.642916+00:00"
   }
  },
  "metrics": {
@@ -161,7 +161,7 @@
    "rejected": 3,
    "semantics": "2 of 3 candidates (incl. hostile payloads) were rejected; the engine is not a rubber stamp"
   },
-  "wall_seconds": 0.41
+  "wall_seconds": 0.42
  },
  "limitations": [
   "the vulnerable baseline arm is a synthetic replica of the ledger-documented pre-fix matcher, not the historical code itself (the repository never retains vulnerable code)",

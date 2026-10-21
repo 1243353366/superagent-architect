@@ -149,6 +149,14 @@ def revision_binding() -> dict:
             "release": run["release"]["state"] if "release" in run
             else run.get("release", {}).get("revision", "n/a"),
             "adversarial_blocked": run["all_adversarial_blocked"]}
+    incident = ROOT / "benchmarks" / "results" / "f2c-incident-patch.json"
+    if incident.is_file():
+        run = json.loads(incident.read_text())
+        binding["incident"] = {
+            "report_sha256": hashlib.sha256(
+                incident.read_bytes()).hexdigest()[:16],
+            "generalizes": run["generalizes"],
+            "capabilities": run["two_outputs"]["capabilities"]}
     f2c_report = ROOT / "benchmarks" / "results" / "f2c-report.json"
     if f2c_report.is_file():
         report = json.loads(f2c_report.read_text())
@@ -222,7 +230,8 @@ bypass lab: {binding.get("bypass_experiments", {}).get("total", 0)}/{binding.get
 zombies: {", ".join(z["id"] + " " + z["status"] for z in binding["zombies"])} ·
 f2c store {binding.get("f2c", {}).get("store_head", "n/a")} ({binding.get("f2c", {}).get("failure_status", "n/a")}) ·
 f2c report sha256:{binding.get("f2c", {}).get("report_sha256", "n/a")} ·
-governed build: adversarial {binding.get("governed", {}).get("adversarial_blocked", "n/a")}, release bound to this revision</div>
+governed build: adversarial {binding.get("governed", {}).get("adversarial_blocked", "n/a")}, release bound to this revision ·
+incident F-CI-ANCHOR-2026: generalizes {binding.get("incident", {}).get("generalizes", "n/a")}, capabilities {binding.get("incident", {}).get("capabilities", "n/a")}</div>
 <div style="font-size:12.5px;color:#6b7280;margin-top:4px">
 dispositions: {", ".join(z["id"] + " → " + z["regression_test"].split(".")[-1] for z in binding["zombies"])}
 — replayed by tests/test_zombie_regressions.py on every CI run</div>

@@ -1,0 +1,68 @@
+{
+ "schema_version": "1.0",
+ "generated_at": "2026-10-21T17:55:36.162411+00:00",
+ "incident": "F-CI-ANCHOR-2026",
+ "store_head": "109f56641f9709576d09e81910f1d20d2c40fec53d939f2487e903c3a9222883",
+ "evidence_immutable": {
+  "fixture_sha256": "16ec0a9cdb5c5c6f",
+  "store_verify": true
+ },
+ "two_outputs": {
+  "corrected_system": [
+   "saarch/patching.py",
+   "tests/test_patching.py",
+   "claim_matches_state adopted as the pre-commit check"
+  ],
+  "capabilities": {
+   "C-patch-integrity": "validated",
+   "C-incident-regression": "validated"
+  }
+ },
+ "validation": {
+  "arms": [
+   {
+    "name": "original_failure_reproduced",
+    "passed": true,
+    "detail": "naive replace silently no-ops without the fix"
+   },
+   {
+    "name": "failure_variations_blocked",
+    "passed": true,
+    "blocked": 2,
+    "files_bit_identical": 2,
+    "cases": 2
+   },
+   {
+    "name": "existing_regressions",
+    "passed": true,
+    "exit_code": 0
+   },
+   {
+    "name": "unrelated_jobs_unharmed",
+    "passed": true,
+    "jobs": [
+     "acceptance",
+     "publish-report",
+     "test"
+    ]
+   },
+   {
+    "name": "generalization_held_out",
+    "passed": true,
+    "denominator": 1,
+    "passed_cases": 1
+   },
+   {
+    "name": "incident_regression_suite",
+    "passed": true,
+    "exit_code": 0
+   }
+  ],
+  "passed": true,
+  "wall_seconds": 1.086,
+  "evaluated_at": "2026-10-21T17:55:34.439912+00:00"
+ },
+ "generalizes": true,
+ "generalization_note": "held-out workflow unseen in incident evidence and regression tests",
+ "wall_seconds": 2.81
+}
