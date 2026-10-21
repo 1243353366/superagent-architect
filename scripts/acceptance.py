@@ -140,6 +140,15 @@ def revision_binding() -> dict:
     suite = unittest.TestLoader().loadTestsFromName(
         "tests.test_zombie_regressions")
     binding["regressions"] = suite.countTestCases()
+    governed = ROOT / "benchmarks" / "results" / "governed-run.json"
+    if governed.is_file():
+        run = json.loads(governed.read_text())
+        binding["governed"] = {
+            "report_sha256": hashlib.sha256(
+                governed.read_bytes()).hexdigest()[:16],
+            "release": run["release"]["state"] if "release" in run
+            else run.get("release", {}).get("revision", "n/a"),
+            "adversarial_blocked": run["all_adversarial_blocked"]}
     f2c_report = ROOT / "benchmarks" / "results" / "f2c-report.json"
     if f2c_report.is_file():
         report = json.loads(f2c_report.read_text())
@@ -212,7 +221,8 @@ zombie regressions: {binding["regressions"]} ·
 bypass lab: {binding.get("bypass_experiments", {}).get("total", 0)}/{binding.get("bypass_experiments", {}).get("total", 0)} contained ·
 zombies: {", ".join(z["id"] + " " + z["status"] for z in binding["zombies"])} ·
 f2c store {binding.get("f2c", {}).get("store_head", "n/a")} ({binding.get("f2c", {}).get("failure_status", "n/a")}) ·
-f2c report sha256:{binding.get("f2c", {}).get("report_sha256", "n/a")}</div>
+f2c report sha256:{binding.get("f2c", {}).get("report_sha256", "n/a")} ·
+governed build: adversarial {binding.get("governed", {}).get("adversarial_blocked", "n/a")}, release bound to this revision</div>
 <div style="font-size:12.5px;color:#6b7280;margin-top:4px">
 dispositions: {", ".join(z["id"] + " → " + z["regression_test"].split(".")[-1] for z in binding["zombies"])}
 — replayed by tests/test_zombie_regressions.py on every CI run</div>
