@@ -55,6 +55,7 @@ decisions, not code-gen.
 | Tool use | `saarch/provider.py` | model-provider abstraction; LiteLLM integration point for entity enrichment; deterministic path always runs first, provider use is recorded |
 | Autonomous repair | `verifier.repair` | strategy ladder (full regen → minimal regen), bounded by repair budget and stagnation detection |
 | Refusal authority | `saarch/policy.py` | prohibited work → `REFUSED` (exit 3), non-overridable — no flag bypasses it. Runs at intake, before and independent of any model; refusal is never delegated to model discretion |
+| Interpretation gate (prototype) | `saarch/claims.py` + `saarch/interpret.py` | typed claim language, evidence kinds with reliability, dependency graph, asserted-only contradiction detection, one-sided refutation; requirements become accepted facts only through `AcceptanceGate`. Requests compile to candidate interpretations with distinguishing tests; certification is refused while candidates are indistinguishable, and the exact resolving question is named. Benchmarks: `benchmarks/uncertainty_loss.py`; demos: `smoke/` |
 | Constructive resistance | `saarch/challenge.py` | contradictory/underspecified input → `CHALLENGED` (exit 4); proceeds only with recorded acceptance, and guardrails win over conflicting capabilities |
 
 ## 3. Engineering engine — database schemas, migrations, backend, UI, testing

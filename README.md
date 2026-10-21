@@ -115,6 +115,72 @@ upstreams that transiently refused the request (HTTP 402 on the free tier);
 the planner retries once and falls back honestly, and pinning a specific
 free model makes runs deterministic.
 
+## Prototype: typed claims, interpretation gate, refusing to certify
+
+The newest layer attacks a specific failure mode: agents resolve ambiguity
+silently, and the uncertainty is lost forever by the second pipeline stage.
+Four pieces, all deterministic and all tested:
+
+- **Typed claim language** (`saarch/claims.py`) — claims are the only unit of
+  reasoning: requirement / interpretation / assumption / derived_fact /
+  open_question, each with typed evidence (prompt excerpt, user answer,
+  executed test result) and per-kind reliability.
+- **Calibration that refuses to collapse the two unknowns** —
+  `unknown-missing` (no evidence; remedy: ask a resolving question or run a
+  test) and `unknown-conflicted` (evidence on both sides; remedy: reconcile)
+  are distinct bands with distinct remedies. A third state, `refuted`, is
+  one-sided: evidence can eliminate a hypothesis without dragging the
+  surviving candidate into a symmetric contradiction.
+- **Dependency graph + contradiction detector** — statuses propagate through
+  dependencies; contradictions are detected only between *asserted* claims
+  (hypotheses coexist until evidence eliminates them).
+- **The gate** (`AcceptanceGate`) — a requirement becomes an accepted fact
+  only with supporting evidence and intact dependencies. The gate names what
+  blocks and the remedy; it never converts “missing” into “probably fine”.
+
+On top of it, `saarch/interpret.py` compiles a natural-language request into
+**candidate interpretations** with structured predicates, generates a
+**distinguishing test** per ambiguity, and **refuses to certify the
+implementation while the evidence cannot distinguish the candidates**. When
+ambiguity blocks certification it names exactly the resolving question
+(greedy max-split — the deterministic seed of a failure-discovery algorithm
+for interaction spaces that grow explosively). When a human answers, the
+answer becomes evidence and statuses re-propagate automatically:
+
+```bash
+python3 smoke/run_all.py            # the physical tour (see below)
+python3 benchmarks/uncertainty_loss.py
+```
+
+### The benchmark: how often uncertainty is lost
+
+Reproducible and honest — it compares two *policies* on a fixed corpus, not
+vendors: a naive pipeline (documented failure mode: ambiguity silently
+resolved at the specify stage, inherited as fact) vs. the claims layer.
+
+| metric | NAIVE | CLAIMS |
+|---|---|---|
+| uncertainty retained at end of specify | 0.000 | 1.000 |
+| uncertainty retained at final stage (unresolved items) | 0.0 | 1.0 |
+| FALSE certifications of ambiguous requirements | 4 | 0 |
+| resolving questions surfaced to the human | 0 | 8 |
+
+### Smoke demos — see it physically
+
+- `smoke/demo_ambiguity.py` — request → candidates → gate REFUSES → the
+  exact resolving question → human answers → evidence re-propagates → gate
+  CERTIFIES. Also: nobody answers (stays uncertified, honestly), a
+  nonsense answer (not silently absorbed), and an unambiguous request
+  (passes straight through).
+- `smoke/demo_calibration.py` — missing vs contradictory side by side.
+- `smoke/demo_benchmark.py` — live benchmark numbers.
+
+Honest limits: the pattern engine is deterministic with four ambiguity
+patterns (cancellation scope, deletion semantics, local-storage strength,
+unquantified performance words). LLM-generated interpretations and the full
+failure-discovery algorithm are future work — they would arrive as more
+candidate claims feeding the same gate, not as a replacement for it.
+
 ## Credits
 
 - AI gateway integration: [OpenProvider](https://github.com/OpenProviderAi/OpenProvider)

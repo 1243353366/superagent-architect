@@ -1,0 +1,50 @@
+{
+  "stages": [
+    "interpret",
+    "specify",
+    "implement",
+    "certify"
+  ],
+  "naive": {
+    "stage_uncertainty_retention": {
+      "interpret": {
+        "ambiguous_all": 1.0
+      },
+      "specify": {
+        "ambiguous_all": 0.0
+      },
+      "implement": {
+        "ambiguous_all": 0.0
+      },
+      "certify": {
+        "ambiguous_all": 0.0
+      }
+    },
+    "final_uncertainty_retained_on_unresolved": 0.0,
+    "false_certifications": 4,
+    "correctly_certified_after_answer": 4,
+    "control_certified_without_questions": 2,
+    "resolving_questions_surfaced": 0
+  },
+  "claims": {
+    "stage_uncertainty_retention": {
+      "interpret": {
+        "ambiguous_all": 1.0
+      },
+      "specify": {
+        "ambiguous_all": 1.0
+      },
+      "implement": {
+        "ambiguous_all": 0.5
+      },
+      "certify": {
+        "ambiguous_all": 0.5
+      }
+    },
+    "final_uncertainty_retained_on_unresolved": 1.0,
+    "false_certifications": 0,
+    "correctly_certified_after_answer": 4,
+    "control_certified_without_questions": 2,
+    "resolving_questions_surfaced": 8
+  }
+}
