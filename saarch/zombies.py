@@ -48,6 +48,7 @@ class Zombie:
         return json.dumps({
             "id": self.id, "title": self.title, "status": self.status,
             "discovered": self.discovered, "repro": self.repro,
+            "original": self.original,
             "disposition": self.disposition,
         }, sort_keys=True, default=str)
 

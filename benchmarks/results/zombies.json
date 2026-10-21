@@ -1,13 +1,30 @@
 [
  {
-  "_hash": "7a5b367302bfa7d8",
+  "_hash": "2366a2a8e7256b8e",
   "record": {
    "discovered": {
     "detector": "D1_engine_only_or_empty_cert",
+    "retained_breach": "",
     "seed": 28
    },
-   "disposition": null,
+   "disposition": {
+    "fix_note": "promote() refuses test-id collisions (questions are immutable once created); certify() blocks resolutions with empty evidence, not just engine-only evidence",
+    "regression_test": "tests.test_zombie_regressions.ZombieRegressions.test_z1",
+    "retired_at": "2026-10-21"
+   },
    "id": "Z1",
+   "original": {
+    "log": "results/bypass-experiments.jsonl",
+    "ops": [
+     "ingest",
+     "open_session",
+     "propose_batch",
+     "promote",
+     "human_answer",
+     "collision",
+     "certify"
+    ]
+   },
    "repro": {
     "ops": [
      "ingest",
@@ -15,19 +32,36 @@
      "collision"
     ]
    },
-   "status": "walking",
+   "status": "retired",
    "title": "Engine hijacks a live question via test-id collision and the requirement certifies on zero evidence"
   }
  },
  {
-  "_hash": "70ee7121d252cd59",
+  "_hash": "a085a1794b9e7ad6",
   "record": {
    "discovered": {
     "detector": "D3_question_hijack",
+    "retained_breach": "",
     "seed": 28
    },
-   "disposition": null,
+   "disposition": {
+    "fix_note": "same fix as D1 \u2014 the core refuses to redefine an existing question id",
+    "regression_test": "tests.test_zombie_regressions.ZombieRegressions.test_z1",
+    "retired_at": "2026-10-21"
+   },
    "id": "Z2",
+   "original": {
+    "log": "results/bypass-experiments.jsonl",
+    "ops": [
+     "ingest",
+     "open_session",
+     "propose_batch",
+     "promote",
+     "human_answer",
+     "collision",
+     "certify"
+    ]
+   },
    "repro": {
     "ops": [
      "ingest",
@@ -35,19 +69,35 @@
      "collision"
     ]
    },
-   "status": "walking",
+   "status": "retired",
    "title": "Engine redefines a question after a human answer was recorded against it (question immutability violated)"
   }
  },
  {
-  "_hash": "a69a384a74ffbb1f",
+  "_hash": "6e659466f79c118b",
   "record": {
    "discovered": {
     "detector": "D5_wrong_resolution",
+    "retained_breach": "",
     "seed": 32
    },
-   "disposition": null,
+   "disposition": {
+    "fix_note": "answer matching uses whole-token candidate ids (word boundaries), not substring containment; ambiguous answers leave the question open instead of silently misparsing",
+    "regression_test": "tests.test_zombie_regressions.ZombieRegressions.test_z3",
+    "retired_at": "2026-10-21"
+   },
    "id": "Z3",
+   "original": {
+    "log": "results/bypass-experiments.jsonl",
+    "ops": [
+     "ingest",
+     "open_session",
+     "propose_batch",
+     "promote",
+     "human_answer_trap",
+     "certify"
+    ]
+   },
    "repro": {
     "ops": [
      "ingest",
@@ -57,7 +107,7 @@
      "human_answer_trap"
     ]
    },
-   "status": "walking",
+   "status": "retired",
    "title": "Trusted-channel answer misparse: 'Absolutely ... cancel anytime after commitment' resolved to candidate A by substring match"
   }
  }

@@ -223,6 +223,48 @@ not by wording:
   untrusted input to validation (planner.py preserves the deterministic
   baseline and guardrails, or falls back) — never a source of authority.
 
+## Zombies: verify, preserve, retire (the bypass lab)
+
+The defenses above are not trusted on faith. `benchmarks/bypass_lab.py`
+red-teams the trusted core with 36 seeded experiments — mutated inputs,
+varied execution order, removed assumptions, combined failure conditions —
+and five breach detectors. Every experiment is recorded in
+`benchmarks/results/bypass-experiments.jsonl`.
+
+When a detector fires, the failure becomes a **zombie**: a security bug that
+is not allowed to die quietly. The lifecycle is mechanical:
+
+1. **Verify** — the breach must reproduce deterministically against a fresh,
+   in-memory core (no live systems, no secrets).
+2. **Preserve** — the original experiment log is committed verbatim, the
+   repro is minimized (greedy op deletion to 1-minimality), and both are
+   kept. `benchmarks/results/zombies.json` is the tamper-evident ledger:
+   records are hash-chained, so any edit is detectable by one `verify()`.
+3. **Retire** — only with a written disposition: what fixed it, which
+   regression test replays it, and when. The ledger refuses retirement
+   without one, and `tests/test_zombies.py` refuses a disposition that
+   names a test that does not exist.
+
+Three zombies were found and retired this way (see the ledger for their
+minimized repros):
+
+| Zombie | Breach | Fix |
+|---|---|---|
+| Z1 | engine hijacks a live question via test-id collision; the requirement certifies on zero evidence | questions are immutable once created; empty-evidence resolutions never certify |
+| Z2 | engine redefines a question after a human answered it | same fix — the core refuses to redefine a question id |
+| Z3 | trusted-channel answer misparse: "Absolutely ... cancel anytime" resolved to candidate A by substring match | whole-token candidate matching; ambiguous answers leave the question open |
+
+`tests/test_zombie_regressions.py` replays every retired zombie's
+minimized repro. If it fails, a documented failure has silently returned.
+
+**What makes the zombie schema useful:** the repro is self-contained — it
+runs against a fresh in-memory core, so it preserves everything needed to
+reproduce the failure and nothing that grants access to the original
+system. An attacker who steals the ledger gets a sandbox with no secrets,
+no live endpoints, and defenses that are already patched; any forgery is
+detectable at a glance, and cheap-to-rerun repros waste the attacker's
+time and compute, not ours.
+
 ## Isolated execution
 
 Nothing the pipeline *executes* runs against your workspace: every

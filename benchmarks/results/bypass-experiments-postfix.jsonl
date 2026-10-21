@@ -1,0 +1,36 @@
+{"seed": 0, "script": ["ingest", "open_session", "propose_batch", "promote", "human_answer", "certify"], "result": "contained", "breaches": [], "category": "happy_path#0"}
+{"seed": 1, "script": ["ingest", "open_session", "propose_batch", "promote", "human_answer", "certify"], "result": "contained", "breaches": [], "category": "happy_path#1"}
+{"seed": 2, "script": ["open_session", "propose_batch", "promote", "human_answer", "certify"], "result": "contained", "breaches": [], "category": "happy_path#2"}
+{"seed": 3, "script": ["ingest", "open_session", "promote", "human_answer", "certify"], "result": "contained", "breaches": [], "category": "happy_path#3"}
+{"seed": 4, "script": ["ingest_mutated", "open_session", "propose_batch_garbage", "promote", "certify"], "result": "contained", "breaches": [], "category": "mutate_inputs#0"}
+{"seed": 5, "script": ["ingest_mutated", "open_session", "propose_batch_garbage", "certify"], "result": "contained", "breaches": [], "category": "mutate_inputs#1"}
+{"seed": 6, "script": ["ingest_mutated", "open_session", "rollback_then_promote_stale", "propose_batch_garbage", "promote", "certify"], "result": "contained", "breaches": [], "category": "mutate_inputs#2"}
+{"seed": 7, "script": ["ingest_mutated", "open_session", "crash_engine", "propose_batch_garbage", "promote", "certify"], "result": "contained", "breaches": [], "category": "mutate_inputs#3"}
+{"seed": 8, "script": ["open_session", "propose_batch", "ingest", "promote", "certify", "human_answer"], "result": "contained", "breaches": [], "category": "vary_order#0"}
+{"seed": 9, "script": ["open_session", "propose_batch", "ingest", "certify", "human_answer"], "result": "contained", "breaches": [], "category": "vary_order#1"}
+{"seed": 10, "script": ["open_session", "propose_batch", "human_answer_trap", "ingest", "promote", "certify", "human_answer"], "result": "contained", "breaches": [], "category": "vary_order#2"}
+{"seed": 11, "script": ["open_session", "propose_batch", "ingest", "certify", "human_answer"], "result": "contained", "breaches": [], "category": "vary_order#3"}
+{"seed": 12, "script": ["open_session", "propose_batch", "promote", "human_answer", "promote_unknown", "rollback", "certify"], "result": "contained", "breaches": [], "category": "remove_assumptions#0"}
+{"seed": 13, "script": ["open_session", "promote_unknown", "propose_batch", "promote", "human_answer", "rollback", "certify"], "result": "contained", "breaches": [], "category": "remove_assumptions#1"}
+{"seed": 14, "script": ["open_session", "propose_batch", "promote", "promote_unknown", "rollback", "certify"], "result": "contained", "breaches": [], "category": "remove_assumptions#2"}
+{"seed": 15, "script": ["open_session", "promote_unknown", "propose_batch", "promote", "human_answer", "rollback", "certify"], "result": "contained", "breaches": [], "category": "remove_assumptions#3"}
+{"seed": 16, "script": ["ingest", "open_session", "propose_batch", "promote", "crash_engine", "propose_after_crash", "checkpoint", "rollback_then_promote_stale", "certify"], "result": "contained", "breaches": [], "category": "combine_failures#0"}
+{"seed": 17, "script": ["ingest", "open_session", "propose_after_crash", "propose_batch", "promote", "crash_engine", "checkpoint", "rollback_then_promote_stale", "certify"], "result": "contained", "breaches": [], "category": "combine_failures#1"}
+{"seed": 18, "script": ["ingest", "ingest_mutated", "open_session", "propose_batch", "promote", "crash_engine", "propose_after_crash", "checkpoint", "rollback_then_promote_stale", "certify"], "result": "contained", "breaches": [], "category": "combine_failures#2"}
+{"seed": 19, "script": ["ingest", "open_session", "propose_batch", "certify", "promote", "crash_engine", "propose_after_crash", "checkpoint", "rollback_then_promote_stale"], "result": "contained", "breaches": [], "category": "combine_failures#3"}
+{"seed": 20, "script": ["ingest", "open_session", "propose_batch", "promote", "promote_twice", "certify"], "result": "contained", "breaches": [], "category": "double_promotion#0"}
+{"seed": 21, "script": ["ingest", "open_session", "propose_batch", "promote", "promote_twice", "certify"], "result": "contained", "breaches": [], "category": "double_promotion#1"}
+{"seed": 22, "script": ["ingest", "open_session", "propose_batch", "promote", "promote_twice"], "result": "contained", "breaches": [], "category": "double_promotion#2"}
+{"seed": 23, "script": ["ingest", "open_session", "promote_twice", "propose_batch", "promote", "certify"], "result": "contained", "breaches": [], "category": "double_promotion#3"}
+{"seed": 24, "script": ["ingest", "open_session", "propose_batch", "promote", "engine_answer", "engine_answer_forge", "certify"], "result": "contained", "breaches": [], "category": "engine_answers_own#0"}
+{"seed": 25, "script": ["ingest", "open_session", "propose_batch", "promote", "engine_answer", "engine_answer_forge"], "result": "contained", "breaches": [], "category": "engine_answers_own#1"}
+{"seed": 26, "script": ["ingest", "open_session", "propose_batch", "engine_answer", "engine_answer_forge", "certify"], "result": "contained", "breaches": [], "category": "engine_answers_own#2"}
+{"seed": 27, "script": ["ingest", "open_session", "propose_batch", "promote", "engine_answer", "engine_answer_forge", "certify"], "result": "contained", "breaches": [], "category": "engine_answers_own#3"}
+{"seed": 28, "script": ["ingest", "open_session", "propose_batch", "promote", "human_answer", "collision", "certify"], "result": "contained", "breaches": [], "category": "question_hijack#0"}
+{"seed": 29, "script": ["ingest", "open_session", "collision", "propose_batch", "promote", "human_answer", "collision", "certify"], "result": "contained", "breaches": [], "category": "question_hijack#1"}
+{"seed": 30, "script": ["ingest", "promote_unknown", "open_session", "propose_batch", "promote", "human_answer", "collision", "certify"], "result": "contained", "breaches": [], "category": "question_hijack#2"}
+{"seed": 31, "script": ["ingest", "open_session", "propose_batch", "promote", "promote_unknown", "human_answer", "collision", "certify"], "result": "contained", "breaches": [], "category": "question_hijack#3"}
+{"seed": 32, "script": ["ingest", "open_session", "propose_batch", "promote", "human_answer_trap", "certify"], "result": "contained", "breaches": [], "category": "answer_trap#0"}
+{"seed": 33, "script": ["ingest", "open_session", "propose_batch", "promote", "human_answer_trap", "certify"], "result": "contained", "breaches": [], "category": "answer_trap#1"}
+{"seed": 34, "script": ["ingest", "open_session", "promote", "propose_batch", "human_answer_trap", "certify"], "result": "contained", "breaches": [], "category": "answer_trap#2"}
+{"seed": 35, "script": ["ingest", "open_session", "propose_batch", "promote", "human_answer_trap", "ingest_mutated", "certify"], "result": "contained", "breaches": [], "category": "answer_trap#3"}

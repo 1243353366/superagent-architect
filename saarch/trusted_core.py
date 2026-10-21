@@ -28,6 +28,7 @@ must NEVER grant it additional authority over this core, so:
 from __future__ import annotations
 
 import copy
+import re
 import time
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
@@ -249,6 +250,14 @@ class TrustedCore:
         if prop.status != "admitted":
             return {"promoted": False, "reason": f"proposal {prop.status}: {prop.reason}"}
         payload = prop.payload
+        requested_test_id = str(payload.get("test_id", "")).strip()
+        if requested_test_id and requested_test_id in self._question_index:
+            prop.status = "rejected"
+            prop.reason = ("test id already defined; questions are "
+                           "immutable once created (zombie Z1/Z2)")
+            self._record("promotion_refused", proposal=proposal_id,
+                         reason=prop.reason, test=requested_test_id)
+            return {"promoted": False, "reason": prop.reason}
         req_claim = payload.get("requirement")
         if req_claim not in self.store.claims:
             prop.status, prop.reason = "rejected", "requirement claim not in ledger"
@@ -301,7 +310,10 @@ class TrustedCore:
                       provenance: str, reliability: float) -> dict:
         selected = None
         for cand in meta["candidates"]:
-            if cand["id"] in answer_text:
+            # whole-token match (zombie Z3): 'Absolutely' must not select
+            # candidate 'A'; ambiguous answers leave the question open
+            if re.search(r"\b" + re.escape(str(cand["id"])) + r"\b",
+                         answer_text):
                 selected = cand
                 break
         if selected is None:
@@ -375,7 +387,7 @@ class TrustedCore:
             sources = {self.store.evidence[e].source
                        for e in self.store.claims[live[0]["claim"]].evidence
                        if e in self.store.evidence}
-            if sources and sources <= {"engine"}:
+            if not sources or sources <= {"engine"}:
                 engine_only.append(meta["requirement"])
         if engine_only:
             result["certified"] = False
