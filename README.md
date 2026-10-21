@@ -349,6 +349,44 @@ file's hash to the exact commit.
 - The two surviving answer-misparse variants are documented but not yet
   their own zombie entries.
 
+## Capability envelopes (schema v1.0): a grant, not a role
+
+Every agentic operation runs inside a **capability envelope** — not a role
+label. Three things are separated by data structure, not prose:
+
+- `responsible_for` — the duty ("generate app files"). Descriptive. It
+  confers no authority whatsoever.
+- `capabilities` — the technical ceiling: exactly which paths may be read,
+  which may be written, which exact commands may run, a wall-clock budget,
+  and `network: false` (egress is never grantable).
+- `grants` — what is authorized *right now*. An envelope with no grants
+  can do nothing, no matter how capable.
+
+`saarch/capability.py` provides:
+
+- `CapabilityEnvelope` — the versioned schema, with a full audit trail of
+  every allow, deny, request, approval, and revocation.
+- `EnvelopeEnforcer` — the execution-layer choke point. Every read,
+  write, exec, and budget tick passes through it; violations are denied,
+  logged, and never coerced.
+- `ApprovalAuthority` — the human channel, holding registered human
+  approvers (`human:<id>`). The enforcer has **no** approve or grant
+  method: an operation can *request* an expansion (with a reason), but
+  only a human authority can convert it into live grants. Engine- or
+  model-shaped approvers are refused by construction, and even a human
+  cannot grant past the envelope's ceiling — a new envelope is required.
+
+Demo: `python smoke/demo_capability.py` shows the whole arc — grant-free
+start, in-envelope work, a denied write, an expansion the operation
+cannot satisfy, human approval, and a ceiling refusal. Tests:
+`tests/test_capability.py` (10 tests) cover the separation, denials,
+budget exhaustion, self-grant impossibility, ceiling limits, and
+immediate revocation.
+
+Remaining work, not yet claimed as done: wiring envelopes into the
+generator/planner pipeline operations and the F2C candidate harness, and
+binding envelope audit hashes into the live acceptance report.
+
 ## Isolated execution
 
 Nothing the pipeline *executes* runs against your workspace: every
