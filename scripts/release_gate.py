@@ -49,6 +49,13 @@ def gate_ok(commit_message, workflow_text=None, claims_path=CLAIMS):
                        "closed rather than run on trust (F-GATE-CHAIN)"
                        )
     try:
+        if str(ROOT) not in sys.path:
+            # CI runs this as `python scripts/release_gate.py`: the
+            # script directory lands on sys.path, not the repo root,
+            # and the claims re-verification import must not depend
+            # on the caller's environment (caught by the gate itself
+            # blocking CI run 39660706405)
+            sys.path.insert(0, str(ROOT))
         from saarch.patching import claim_matches_state
         claim_matches_state(json.loads(
             Path(claims_path).read_text()))

@@ -68,3 +68,19 @@ class GateBypassLab(unittest.TestCase):
         honest marker — the gate must allow exactly this."""
         ok, why = gate_ok("fix (claim_matches_state)")
         self.assertTrue(ok, why)
+
+    def test_gate_passes_from_a_clean_environment(self):
+        """CI invokes the gate as `python scripts/release_gate.py`
+        with the script dir on sys.path — not the repo root. The
+        gate caught its own environment-dependent import by blocking
+        CI run 39660706405; this test pins the fix."""
+        import subprocess
+        out = subprocess.run(
+            [sys.executable,
+             str(ROOT / "scripts/release_gate.py")],
+            capture_output=True, text=True,
+            cwd=str(ROOT),
+            env={"PATH": "/usr/bin:/bin", "HOME": "/tmp"})
+        self.assertEqual(out.returncode, 0,
+                         f"gate failed from clean env: {out.stdout} "
+                         f"{out.stderr}")
