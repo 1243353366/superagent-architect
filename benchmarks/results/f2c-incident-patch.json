@@ -1,8 +1,8 @@
 {
  "schema_version": "1.0",
- "generated_at": "2026-10-21T18:45:34.348106+00:00",
+ "generated_at": "2026-10-21T18:48:25.402490+00:00",
  "incident": "F-CI-ANCHOR-2026",
- "store_head": "2d56c3d93dadd83c77135d8a312b834d305a9f0e3f083a34dd30f890be9ffdf6",
+ "store_head": "e16ce7513ce68875ebf52c8297d8941561a290a71ff2c56ddc6793d9f87864c5",
  "evidence_immutable": {
   "fixture_sha256": "16ec0a9cdb5c5c6f",
   "store_verify": true
@@ -81,7 +81,7 @@
   ],
   "passed": true,
   "wall_seconds": 1.603,
-  "evaluated_at": "2026-10-21T18:45:34.236705+00:00"
+  "evaluated_at": "2026-10-21T18:48:25.291756+00:00"
  },
  "rejected_experiments": [
   {
@@ -149,7 +149,8 @@
    "F-SPEC-SINGULARIZATION",
    "F-CI-ANCHOR-2026",
    "F-ISO-Z-SUFFIX",
-   "F-SUITE-FLAKE"
+   "F-SUITE-FLAKE",
+   "F-GATE-CHAIN"
   ],
   "capability_ids": [
    "C-z3-whole-token-matching",
@@ -164,7 +165,7 @@
    "C-probe-unvalidated",
    "C-step-presence-grep"
   ],
-  "durable_dispositions": 20,
+  "durable_dispositions": 21,
   "note": "zombies, historical bugs, and this incident \u2014 one append-only, hash-chained database; query it with FailureToCapabilityEngine.retrieve() or .dispositions(ref)"
  },
  "human_guided": {
@@ -202,11 +203,71 @@
    "FWBC-003",
    "FWBC-005",
    "FWBC-004",
-   "FWBC-006"
+   "FWBC-006",
+   "FWBC-007"
+  ],
+  "archetype_scans": [
+   {
+    "fwbc_id": "FWBC-001",
+    "adult": "A workflow patch applied silently as a no-op and CI published a success report for a change that never happened.",
+    "child": "The robot said 'done' without ever checking the work.",
+    "chicken": "A naive text replace ran on the workflow file without verifying the anchor it targeted.",
+    "egg": "Automation success signals were trusted without evidence.",
+    "farmer": "The system now refuses any claim not proven against repository state (C-patch-integrity); every automation must verify its own effect."
+   },
+   {
+    "fwbc_id": "FWBC-002",
+    "adult": "An engine candidate hijacked a live question via test-id collision and certified a requirement with zero trusted evidence.",
+    "child": "The robot answered its own question and graded itself right.",
+    "chicken": "The engine submitted an interpretation batch reusing a live question's test id.",
+    "egg": "Certification accepted engine-provenance evidence as sufficient, and question ids were not collision-checked.",
+    "farmer": "Engine-only evidence can never certify (C-z1-evidence-gate) and question ids are refused on collision \u2014 detection split per failure by the matrix."
+   },
+   {
+    "fwbc_id": "FWBC-003",
+    "adult": "A question could be redefined after a human answered it or after a rollback.",
+    "child": "The robot erased a person's answer and swapped in its own.",
+    "chicken": "A rollback restored the checkpoint, then the engine re-proposed with the same test id.",
+    "egg": "Question identity was not immutably bound to its answer history.",
+    "farmer": "Questions are immutable once created, rollback restores exact state, and dedicated detection is proven by the mutation matrix (C-z2-question-immutability)."
+   },
+   {
+    "fwbc_id": "FWBC-005",
+    "adult": "datetime.fromisoformat rejected timestamps ending in 'Z' on Python 3.9 and 3.10, breaking the engine on the CI matrix.",
+    "child": "Two Pythons disagreed about how to write 'zero o'clock UTC'.",
+    "chicken": "The CI matrix ran the suite on Python 3.9 and 3.10.",
+    "egg": "Stdlib behavior was assumed uniform across Python versions.",
+    "farmer": "The version matrix is a standing antibody and all timestamps are normalized at the boundary regardless of Python."
+   },
+   {
+    "fwbc_id": "FWBC-004",
+    "adult": "A trap answer substring-matched and silently resolved an ambiguous question to the wrong candidate.",
+    "child": "The robot heard a plain 'yes' when the person really said 'maybe'.",
+    "chicken": "A free-text human answer containing a candidate substring arrived at the matcher.",
+    "egg": "Answer matching used substring containment instead of whole tokens.",
+    "farmer": "Matching is whole-token, ambiguity keeps the question open, and the trap is a permanent regression."
+   },
+   {
+    "fwbc_id": "FWBC-006",
+    "adult": "Five intermittent suite failures appeared across three days and never reproduced on rerun.",
+    "child": "The tests occasionally cry wolf and nobody knows why yet.",
+    "chicken": "Unknown \u2014 nothing captured the failing test's name at the time.",
+    "egg": "Failure paths did not persist evidence, so the diagnosis could not even name the failing test.",
+    "farmer": "Runs routed through the suite-failure ledger now leave evidence; the flake-reproduction loop stays proposed until an occurrence is captured."
+   },
+   {
+    "fwbc_id": "FWBC-007",
+    "adult": "The claim check failed on one overstated report claim, and the commit shipped anyway because the shell chain did not make the check a precondition.",
+    "child": "The robot checked its homework, found a mistake, and handed it in anyway.",
+    "chicken": "The operator placed git add on a new line after the check's heredoc, so a failed check could not stop the commit.",
+    "egg": "Release authority lived in the operator's shell chain rather than in the repository.",
+    "farmer": "The gate must move into CI where it cannot be skipped; until that capability is designed and validated, this failure stays open."
+   }
   ],
   "antibodies": [
    "commit-claim-consistency",
    "flake-reproduction-loop",
+   "gate-as-precondition",
    "operator-chain-fail-stop",
    "patch-application-confirmation",
    "postcondition-placement-check",
@@ -228,7 +289,7 @@
  },
  "generalizes": true,
  "generalization_note": "held-out workflow unseen in incident evidence and regression tests",
- "wall_seconds": 4.82,
+ "wall_seconds": 4.8,
  "post_write_verification": {
   "suite": "tests.test_patching (full, incl. IncidentArtifact and ExtendedValidation)",
   "passed": true

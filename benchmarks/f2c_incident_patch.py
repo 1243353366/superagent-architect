@@ -1206,6 +1206,82 @@ def main() -> int:
         0.4, "FWBC-006", "2026-10-21T18:45:00Z",
         scan=SCANS["FWBC-006"]))
 
+    # F-GATE-CHAIN (2026-10-21, this delivery): the claim check ran,
+    # FAILED on one overstated report claim, and the commit shipped
+    # anyway — the operator placed git add outside the check's &&
+    # chain. The gate existed but was not a precondition. Recorded
+    # honestly: root cause CONFIRMED, NOT retired (closing requires a
+    # regression test that fails when the gate is bypassable),
+    # antibody proposed-only until designed and validated.
+    engine.ingest_failure({
+        "failure_id": "F-GATE-CHAIN",
+        "schema_version": F2C_SCHEMA_VERSION,
+        "created_at": "2026-10-21T20:30:00Z",
+        "failure_class": "state_integrity",
+        "severity": "S2",
+        "status": "observed",
+        "expected_behavior": {
+            "behavior": "a failed claim check blocks the commit",
+            "source": "release-gate policy"},
+        "observed_behavior": {
+            "behavior": "claim_matches_state failed on one mismatch "
+                        "and the commit shipped because the shell "
+                        "chain placed git add on a new line after "
+                        "the check's heredoc",
+            "evidence": "push fadcadb exists despite the failed "
+                        "gate; caught immediately after the push"},
+        "fixture_ref": FIXTURE,
+        "environment_fingerprint": {"python": sys.version.split()[0]},
+        "root_cause": {"kind": "confirmed",
+                       "explanation": "the gate ran as a separate "
+                       "command, not a precondition of git commit"},
+        "provenance": {"artifact_hashes": {
+            FIXTURE: sha256_file(ROOT / FIXTURE)}}})
+    engine.record_disposition(
+        "F-GATE-CHAIN", "observed",
+        "open: closing requires a regression test that fails when "
+        "the gate is bypassable; operator discipline alone is "
+        "deliberately not claimed as a capability")
+    engine.analyze_incident(condition_model(
+        "F-GATE-CHAIN", "process_failure",
+        "the release gate ran but did not block a failed claim check",
+        ["the gate was a separate command rather than a "
+         "precondition"],
+        ["release authority lived in the operator's shell chain, "
+         "not in the repository"],
+        ["a heredoc command followed by git add on a new line "
+         "still counts as enforcement"],
+        ["running the gate manually right before committing"],
+        ["no automation enforces the gate"],
+        [],
+        [{"name": "gate-as-precondition",
+          "description": "the claim check must be structurally "
+                         "impossible to skip",
+          "detection_rule": "a commit exists whose claim check "
+                            "failed or never ran",
+          "mitigation": "wire claim_matches_state into CI as a "
+                        "required job that inspects the last commit "
+                        "for gate evidence; proposed until designed "
+                        "and validated",
+          "status": "proposed"}],
+        ["the gate is now known-bypassable — itself evidence for "
+         "CI enforcement"],
+        ["automation_trust", "verification_failure"],
+        0.85, "FWBC-007", "2026-10-21T20:35:00Z",
+        scan=("The claim check failed on one overstated report "
+              "claim, and the commit shipped anyway because the "
+              "shell chain did not make the check a precondition.",
+              "The robot checked its homework, found a mistake, and "
+              "handed it in anyway.",
+              "The operator placed git add on a new line after the "
+              "check's heredoc, so a failed check could not stop "
+              "the commit.",
+              "Release authority lived in the operator's shell "
+              "chain rather than in the repository.",
+              "The gate must move into CI where it cannot be "
+              "skipped; until that capability is designed and "
+              "validated, this failure stays open.")))
+
     immune = engine.immune_memory({})
     report = {
         "schema_version": F2C_SCHEMA_VERSION,
@@ -1335,6 +1411,13 @@ def main() -> int:
                      "silence is never approval"},
         "immune_memory": {
             "condition_models": [m["fwbc_id"] for m in immune["models"]],
+            "archetype_scans": [{"fwbc_id": m["fwbc_id"],
+                                 "adult": m["archetype_scan"]["adult"],
+                                 "child": m["archetype_scan"]["child"],
+                                 "chicken": m["archetype_scan"]["chicken"],
+                                 "egg": m["archetype_scan"]["egg"],
+                                 "farmer": m["archetype_scan"]["farmer"]}
+                                for m in immune["models"]],
             "antibodies": immune["antibodies"],
             "recurring_themes": sorted(
                 {sig for m in immune["models"]
