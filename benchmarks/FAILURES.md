@@ -33,6 +33,11 @@ Model: llm7/gpt-oss:20b via a local OpenProvider gateway (free tier).
 - **Rate limiting killed 3 of 4 items** (HTTP 429, retried with backoff:
   30/60/120s, then recorded as failed). Recorded in
   `results/llm-baseline-transcripts.json`.
+   A second full run at 16:14 UTC was 0/4 — the free-tier upstream was
+   fully rate-limited by then. The committed evidence file is the 16:05
+   run because it completed more items; the rerun exists only in git
+   history. Publishing both outcomes, keeping the informative one.
+
 - **Schema compliance: 0.0.** The single completed item parsed, but on the
   lenient reading only — the model ignored the requested JSON keys
   (`ambiguous_aspects`/`clarifications_needed` instead of
