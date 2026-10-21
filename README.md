@@ -224,6 +224,52 @@ not produced through the claim check — the F-GATE-CHAIN lesson
 (commit `fadcadb` shipped despite a failed gate). CI runs it on
 every push: the operator cannot skip the gate where it matters.
 
+## Scope freeze (v1.0.0)
+
+Frozen after three gates, each verified against one commit:
+
+1. **Required behavior works.** Five-layer scans fail closed on
+   every incident digest; the joint Z1/Z2 database holds them with
+   the append-only disposition trail; human decisions, goal
+   directives, and verification requirements behave as specified;
+   the release gate passes from a clean environment and blocks its
+   own CI on any broken state.
+2. **Known failures are contained honestly.** G-002 is an active,
+   evidence-collecting zombie (22 clean runs through the aligned
+   capture harness, never reproduced, trap set). F-CAPTURE-HARNESS
+   retired behind `test_fixtures_are_respected`. F-GATE-CHAIN
+   reviewed as *resolved, protection retained*: the incident
+   retires, the release gate remains as a permanent safeguard. No
+   fabricated closure anywhere.
+3. **The release is reproducible.** Suite, acceptance checks,
+   database integrity, and the reports below all correspond to the
+   tagged commit; CI reconciles the published report to the exact
+   revision.
+
+### Known limitations (documented, not hidden)
+
+- The suite flake (G-002) is unresolved and unreproduced.
+- The gate's chain of trust bottoms out at CI workflow review: a
+  coordinated edit of `ci.yml` and `scripts/acceptance.py` can only
+  be stopped by human review of the diff.
+- Release claims cover the release-critical artifacts, not every
+  file; the marker is attestation, the re-verified claims are proof.
+- Google / company SSO and production identity are NOT implemented
+  and not claimed: they require owner OAuth credentials,
+  administrator approval, and enforced MFA; production deployment
+  stays blocked until an approved identity provider is configured.
+- The LLM planning path needs an external OpenAI-compatible
+  gateway; the deterministic planner is the in-repo floor.
+- Generated demos stay local/private by default.
+- Zombie-lab containment is verified for the documented exploit
+  classes only, and the store is single-writer.
+
+Reopen only for a concrete defect, a security issue, or a
+meaningful new requirement: an actual captured flake occurrence,
+a new bypass class, or a new incident from real work. FWBC exists
+to make failure survivable and useful, not to promise that nothing
+can ever fail.
+
 ## Credits
 
 - AI gateway integration: [OpenProvider](https://github.com/OpenProviderAi/OpenProvider)

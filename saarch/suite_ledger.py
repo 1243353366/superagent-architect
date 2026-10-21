@@ -45,7 +45,8 @@ def run_with_ledger(test_names, ledger_path):
             "ledger_rows": rows}
 
 
-def discover_suite(ledger_path, pattern="test*.py"):
+def discover_suite(ledger_path, pattern="test*.py",
+                    tests_dir=None):
     """Discover and run the FULL suite, timing every test. On failure,
     one ledger row with the context G-002 needs to be narrowed or
     reproduced: failing ids and full errors, the complete test order,
@@ -54,13 +55,14 @@ def discover_suite(ledger_path, pattern="test*.py"):
     import time
     loader = unittest.TestLoader()
     root = Path(__file__).resolve().parents[1]
+    tests_dir = Path(tests_dir) if tests_dir else root / "tests"
     # top_level_dir must be the repository root, or modules import as
     # 'test_x' instead of 'tests.test_x' and cross-module imports
     # create duplicate module objects (26 false failures in the first
     # capture runs — recorded in the ledger, root-caused, fixed)
-    suite = loader.discover(str(root / "tests"),
+    suite = loader.discover(str(tests_dir),
                              pattern=pattern,
-                             top_level_dir=str(root))
+                             top_level_dir=str(tests_dir.parent))
     # timing must not bypass TestSuite.run: class and module fixtures
     # (setUpClass) are handled by the SUITE, not by bare test calls —
     # the first harness version called tests directly and failed 26

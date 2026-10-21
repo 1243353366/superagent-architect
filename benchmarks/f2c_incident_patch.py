@@ -1282,6 +1282,147 @@ def main() -> int:
               "skipped; until that capability is designed and "
               "validated, this failure stays open.")))
 
+    # --- F-CAPTURE-HARNESS (2026-10-21): the G-002 capture harness
+    # itself failed loudly, and its own ledger rows proved it: 26
+    # false failures on EVERY run, eight rows of full context. Root
+    # causes read from the rows: discovery without top_level_dir
+    # loaded modules twice (setUpClass hit the wrong class), and
+    # bare test(result) calls bypassed TestSuite fixture handling.
+    # Both fixed; the fixture-respecting path is pinned by a
+    # regression test and this incident retires behind it. The
+    # harness's first two catches were itself — the system worked
+    # exactly as designed.
+    engine.ingest_failure({
+        "failure_id": "F-CAPTURE-HARNESS",
+        "schema_version": F2C_SCHEMA_VERSION,
+        "created_at": "2026-10-21T22:00:00Z",
+        "failure_class": "silent_failure",
+        "severity": "S2",
+        "status": "observed",
+        "expected_behavior": {
+            "behavior": "the capture harness runs the real suite "
+                         "and reports true verdicts",
+            "source": "C-suite-failure-ledger capability"},
+        "observed_behavior": {
+            "behavior": "26 false failures on every run (246 "
+                         "discovered, 26 fixture-dependent tests "
+                         "erroring), eight ledger rows with full "
+                         "context, deterministic across 8 runs",
+            "evidence": "benchmarks/results/suite-failures.jsonl "
+                        "(8 committed rows)"},
+        "fixture_ref": "benchmarks/results/suite-failures.jsonl",
+        "environment_fingerprint": {"python":
+                                    sys.version.split()[0]},
+        "root_cause": {"kind": "confirmed",
+                       "explanation": "two harness defects: "
+                       "discovery without top_level_dir loaded "
+                       "modules twice; bare test(result) calls "
+                       "bypassed TestSuite fixture handling "
+                       "(setUpClass)"},
+        "provenance": {"artifact_hashes": {
+            "benchmarks/results/suite-failures.jsonl":
+            sha256_file(ROOT / "benchmarks/results/"
+                        "suite-failures.jsonl")}}})
+    for status in ("reproduced", "classified", "candidate_created",
+                   "validated"):
+        engine.set_status("F-CAPTURE-HARNESS", status)
+    engine.record_disposition(
+        "F-CAPTURE-HARNESS", "validated",
+        "fixed and pinned: discovery pins top_level_dir to the repo "
+        "root; the suite runs through a timed TextTestResult so "
+        "class and module fixtures are handled by the suite; 22 "
+        "consecutive clean runs after the fix")
+    engine.retire_failure(
+        "F-CAPTURE-HARNESS",
+        "tests.test_suite_ledger::SuiteLedgerDiscovery."
+        "test_fixtures_are_respected")
+    engine.analyze_incident(condition_model(
+        "F-CAPTURE-HARNESS", "monitoring_failure",
+        "the failure-capture harness produced 26 false failures on "
+        "every run",
+        ["the harness ran outside the suite's fixture machinery",
+         "discovery did not pin top_level_dir"],
+        ["discovery loaded modules twice (test_f2c and "
+         "tests.test_f2c were different objects)",
+         "bare test(result) calls skipped TestSuite fixture "
+         "handling"],
+        ["a monitoring tool that runs tests is itself under test"],
+        ["first deployment of the discover-mode harness"],
+        ["the harness had never run against a fixture-heavy suite"],
+        [],
+        [{"name": "harness-runs-the-real-suite",
+          "description": "the harness must invoke TestSuite.run, "
+                         "never bare test calls, and discovery must "
+                         "pin top_level_dir",
+          "detection_rule": "fixture-dependent tests fail under "
+                            "the harness",
+          "mitigation": "already enforced: timed TextTestResult + "
+                        "top_level_dir; pinned by the regression "
+                        "test that retires this incident",
+          "status": "implemented"}],
+        ["the ledger's first two catches were its own bugs, "
+         "root-caused from its own rows — evidence-first debugging "
+         "worked on the debugger itself"],
+        ["automation_trust", "verification_failure"],
+        0.9, "FWBC-008", "2026-10-21T22:05:00Z",
+        scan=("The G-002 capture harness reported 26 failures on "
+              "every run; its own ledger rows showed the failures "
+              "came from the harness, not the suite.",
+              "The tool built to catch broken things was itself "
+              "broken in two ways, and its diary proved it.",
+              "The harness ran right after its first deployment, "
+              "failing 26 fixture-dependent tests every run for "
+              "eight runs.",
+              "The auditor was not audited: the new monitoring tool "
+              "was trusted precisely because gathering evidence "
+              "was its purpose.",
+              "New monitoring tools must pass the same fixture "
+              "discipline as the code they watch — pinned by "
+              "regression, retired behind it.")))
+
+    # --- F-GATE-CHAIN retirement review: the original incident (a
+    # failed claim check that shipped anyway) is resolved — the gate
+    # is a validated RETAINED protection, not a temporary defense to
+    # remove. The incident retires; the guard remains as a
+    # permanent safeguard.
+    engine.record_retirement_review({
+        "review_id": "RR-GATE-1",
+        "schema_version": F2C_SCHEMA_VERSION,
+        "created_at": "2026-10-21T22:10:00Z",
+        "zombie_id": "FWBC-007",
+        "underlying_incident": "F-GATE-CHAIN",
+        "proposed_fix": "the claim check is a precondition: the "
+                        "marker gate runs in every CI job and "
+                        "re-verifies the committed release claims",
+        "verification_evidence": {
+            "passed": True,
+            "detail": "bypass lab 6/6 techniques caught; "
+                      "clean-environment gate run green; gate green "
+                      "in CI on 4fcadb6"},
+        "challenge_evidence": {
+            "detail": "the gate blocked its own CI run 39660706405 "
+                      "when the claims import depended on the "
+                      "caller's environment — the original failure "
+                      "class (a check that passes while the state "
+                      "is broken) recreated in production and "
+                      "caught"},
+        "collateral_evidence": {
+            "detail": "the release gate protects every future "
+                      "release; removal would unprotect all "
+                      "subsequent commits — independent long-term "
+                      "value"},
+        "outcome": "resolved_protection_retained",
+        "escalation": ""})
+
+    # --- F-SUITE-FLAKE stays an active, evidence-collecting zombie
+    engine.record_disposition(
+        "F-SUITE-FLAKE", "unresolved_active",
+        "22 consecutive clean runs through the aligned capture "
+        "harness; the eight ledger rows were harness artifacts "
+        "(F-CAPTURE-HARNESS), not the flake; the trap is set — the "
+        "next occurrence arrives with failing ids, full errors, "
+        "per-test durations, and environment")
+
     immune = engine.immune_memory({})
     report = {
         "schema_version": F2C_SCHEMA_VERSION,

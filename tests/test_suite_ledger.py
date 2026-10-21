@@ -59,3 +59,33 @@ class SuiteLedger(unittest.TestCase):
             run_with_ledger([boom_case()], ledger)
             self.assertEqual(len(ledger.read_text().splitlines()), 2,
                              "evidence accumulates; never rewritten")
+
+
+class SuiteLedgerDiscovery(unittest.TestCase):
+    """F-CAPTURE-HARNESS regression: the discover harness must run
+    tests through TestSuite.run so class and module fixtures
+    (setUpClass) execute. The first harness version called tests
+    as bare functions and failed 26 fixture-dependent tests on
+    every run; this test pins the fixed machinery."""
+
+    def test_fixtures_are_respected(self):
+        import tempfile
+        from saarch.suite_ledger import discover_suite
+        with tempfile.TemporaryDirectory() as tmp:
+            pkg = Path(tmp) / "pkg"
+            pkg.mkdir()
+            (pkg / "__init__.py").write_text("")
+            (pkg / "test_mod.py").write_text(
+                "import unittest\n\n\n"
+                "class T(unittest.TestCase):\n"
+                "    fixed = None\n\n"
+                "    @classmethod\n"
+                "    def setUpClass(cls):\n"
+                "        cls.fixed = 41 + 1\n\n"
+                "    def test_fixture_ran(self):\n"
+                "        self.assertEqual(self.fixed, 42)\n")
+            out = discover_suite(str(Path(tmp) / "ledger.jsonl"),
+                                 tests_dir=pkg)
+        self.assertEqual(out["ran"], 1)
+        self.assertEqual(out["failed"], 0)
+        self.assertFalse(out["ledger_row"])

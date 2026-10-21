@@ -1,8 +1,8 @@
 {
  "schema_version": "1.0",
- "generated_at": "2026-10-21T18:48:25.402490+00:00",
+ "generated_at": "2026-10-21T19:31:43.402397+00:00",
  "incident": "F-CI-ANCHOR-2026",
- "store_head": "e16ce7513ce68875ebf52c8297d8941561a290a71ff2c56ddc6793d9f87864c5",
+ "store_head": "45fff63c3b73c214bebaca1d6b873956a503a598b422a95d94e1662d0b947161",
  "evidence_immutable": {
   "fixture_sha256": "16ec0a9cdb5c5c6f",
   "store_verify": true
@@ -80,8 +80,8 @@
    }
   ],
   "passed": true,
-  "wall_seconds": 1.603,
-  "evaluated_at": "2026-10-21T18:48:25.291756+00:00"
+  "wall_seconds": 1.617,
+  "evaluated_at": "2026-10-21T19:31:43.277375+00:00"
  },
  "rejected_experiments": [
   {
@@ -150,7 +150,8 @@
    "F-CI-ANCHOR-2026",
    "F-ISO-Z-SUFFIX",
    "F-SUITE-FLAKE",
-   "F-GATE-CHAIN"
+   "F-GATE-CHAIN",
+   "F-CAPTURE-HARNESS"
   ],
   "capability_ids": [
    "C-z3-whole-token-matching",
@@ -165,7 +166,7 @@
    "C-probe-unvalidated",
    "C-step-presence-grep"
   ],
-  "durable_dispositions": 21,
+  "durable_dispositions": 24,
   "note": "zombies, historical bugs, and this incident \u2014 one append-only, hash-chained database; query it with FailureToCapabilityEngine.retrieve() or .dispositions(ref)"
  },
  "human_guided": {
@@ -204,7 +205,8 @@
    "FWBC-005",
    "FWBC-004",
    "FWBC-006",
-   "FWBC-007"
+   "FWBC-007",
+   "FWBC-008"
   ],
   "archetype_scans": [
    {
@@ -262,12 +264,21 @@
     "chicken": "The operator placed git add on a new line after the check's heredoc, so a failed check could not stop the commit.",
     "egg": "Release authority lived in the operator's shell chain rather than in the repository.",
     "farmer": "The gate must move into CI where it cannot be skipped; until that capability is designed and validated, this failure stays open."
+   },
+   {
+    "fwbc_id": "FWBC-008",
+    "adult": "The G-002 capture harness reported 26 failures on every run; its own ledger rows showed the failures came from the harness, not the suite.",
+    "child": "The tool built to catch broken things was itself broken in two ways, and its diary proved it.",
+    "chicken": "The harness ran right after its first deployment, failing 26 fixture-dependent tests every run for eight runs.",
+    "egg": "The auditor was not audited: the new monitoring tool was trusted precisely because gathering evidence was its purpose.",
+    "farmer": "New monitoring tools must pass the same fixture discipline as the code they watch \u2014 pinned by regression, retired behind it."
    }
   ],
   "antibodies": [
    "commit-claim-consistency",
    "flake-reproduction-loop",
    "gate-as-precondition",
+   "harness-runs-the-real-suite",
    "operator-chain-fail-stop",
    "patch-application-confirmation",
    "postcondition-placement-check",
@@ -289,7 +300,7 @@
  },
  "generalizes": true,
  "generalization_note": "held-out workflow unseen in incident evidence and regression tests",
- "wall_seconds": 4.8,
+ "wall_seconds": 4.84,
  "post_write_verification": {
   "suite": "tests.test_patching (full, incl. IncidentArtifact and ExtendedValidation)",
   "passed": true
