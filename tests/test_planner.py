@@ -96,12 +96,13 @@ class PlanProjectTests(unittest.TestCase):
         self.assertTrue(self._entries("planned"))
 
     def test_valid_llm_refinement_is_used(self):
-        refined = [{"id": t.id, "title": t.title, "depends_on": t.depends_on}
-                   for t in plan_tasks()]
-        refined.append({"id": "seed_data", "title": "Seed starting ledger rows",
-                        "depends_on": ["storage"]})
-        provider = ScriptedPlanningProvider(
-            {"tasks": refined, "notes": "added a data-seeding task"})
+        provider = ScriptedPlanningProvider({
+            "title_overrides": [{"id": "docs",
+                                 "title": "Ledger README and workflow docs"}],
+            "add_tasks": [{"id": "seed_data",
+                           "title": "Seed starting ledger rows",
+                           "depends_on": ["storage"]}],
+            "notes": "added a data-seeding task"})
         tasks, path, notes = plan_project(self.project, provider=provider,
                                           audit=self.audit)
         self.assertTrue(path.startswith("llm:"))

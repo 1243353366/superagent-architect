@@ -121,3 +121,48 @@ app too (real executions, from `ledger-workdir/audit.jsonl`):
 14 files pushed by `saarch deliver --github` via the REST API, stdlib only.
 Private by the delivery layer's default: no authentication layer was
 generated, so the repository is not published.
+
+---
+
+# Live LLM planning run (OpenProvider gateway, keyless)
+
+A real end-to-end run where the build plan was produced through the LLM-backed
+planning path — no API keys of ours involved:
+
+- **Gateway**: [OpenProvider](https://github.com/OpenProviderAi/OpenProvider)
+  standalone gateway (`npm run build:gateway && node dist/server.js`),
+  running locally, routing to keyless free-tier providers
+  (`llm7/gpt-oss:20b`).
+- **Result**: the model renamed task titles for the water-intake tracker and
+  added two tasks (`network_guardrails`, `health_endpoint`); the diff was
+  merged deterministically onto the 9-task baseline, validated (baseline
+  preserved, acyclic DAG), and the pipeline reached READY with all four
+  verification checks green in isolated sandboxes.
+
+Console output (real run):
+
+```
+PLANNED — 11 tasks in dependency order (planning path: llm:http:127.0.0.1:llm7/gpt-oss:20b)
+  planner notes: Renamed titles to reflect water tracker and added health endpoint and network guardrails tasks.
+GENERATED 14 files -> /llm-run/generated/water-intake-tracker
+  [PASS] compileall
+  [PASS] generated-project-tests
+  [PASS] secret-scan
+  [PASS] dependency-provenance
+READY — verification passed
+```
+
+Evidence in this directory:
+
+- `audit-trail.jsonl` — the full append-only audit of the run, including the
+  `planned` entry (`"path": "llm:http:127.0.0.1:llm7/gpt-oss:20b"`,
+  `added_tasks`, model notes) and every isolated check.
+- `plan-record.json` — the persisted plan with its provenance
+  (`plan_path`, `plan_notes`).
+
+Notes from the live run, for reproducibility: `model: "auto"` sometimes
+routed to upstreams that transiently refused the request (HTTP 402 from the
+free tier); the planner's bounded retry plus its honest fallback handled it,
+and pinning a specific free model (`llm7/gpt-oss:20b`) made the run
+deterministic. Free upstreams change — the fallback contract is what makes
+this dependable.

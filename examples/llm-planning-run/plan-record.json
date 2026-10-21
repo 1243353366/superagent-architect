@@ -1,0 +1,85 @@
+{
+  "slug": "water-intake-tracker",
+  "state": "READY",
+  "plan_path": "llm:http:127.0.0.1:llm7/gpt-oss:20b",
+  "plan_notes": "Renamed titles to reflect water tracker and added health endpoint and network guardrails tasks.",
+  "plan": [
+    {
+      "id": "models",
+      "title": "Data models for water logs and daily goals",
+      "depends_on": []
+    },
+    {
+      "id": "storage",
+      "title": "SQLite schema for water logs and daily goals",
+      "depends_on": [
+        "models"
+      ]
+    },
+    {
+      "id": "validation",
+      "title": "Validate water log input and goal settings",
+      "depends_on": [
+        "models"
+      ]
+    },
+    {
+      "id": "api",
+      "title": "CRUD API for water logs and daily goals",
+      "depends_on": [
+        "storage",
+        "validation"
+      ]
+    },
+    {
+      "id": "ui",
+      "title": "Single-page web UI for tracking water intake",
+      "depends_on": [
+        "api"
+      ]
+    },
+    {
+      "id": "network_guardrails",
+      "title": "Enforce no external network calls (guardrails)",
+      "depends_on": [
+        "api"
+      ]
+    },
+    {
+      "id": "server",
+      "title": "HTTP server and routing for the tracker",
+      "depends_on": [
+        "api",
+        "ui"
+      ]
+    },
+    {
+      "id": "entry",
+      "title": "Application entry point",
+      "depends_on": [
+        "server"
+      ]
+    },
+    {
+      "id": "tests",
+      "title": "Unit and integration tests for tracker",
+      "depends_on": [
+        "server"
+      ]
+    },
+    {
+      "id": "health_endpoint",
+      "title": "Implement /health endpoint for health checks",
+      "depends_on": [
+        "server"
+      ]
+    },
+    {
+      "id": "docs",
+      "title": "README, environment template, dev workflow",
+      "depends_on": [
+        "entry"
+      ]
+    }
+  ]
+}

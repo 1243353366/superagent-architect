@@ -61,12 +61,13 @@ class SecondAppPipelineTests(unittest.TestCase):
         self.project.transition(PLANNED)
         # scripted provider proves the LLM path is real code: a valid
         # refinement is adopted and labeled, anything else falls back
-        refined = [{"id": t.id, "title": t.title, "depends_on": t.depends_on}
-                   for t in __import__("saarch.generator", fromlist=["plan_tasks"]).plan_tasks()]
-        refined.append({"id": "seed_ledger", "title": "Seed opening ledger balance",
-                        "depends_on": ["storage"]})
-        provider = ScriptedPlanningProvider(
-            {"tasks": refined, "notes": "added ledger seeding for the two-resource model"})
+        provider = ScriptedPlanningProvider({
+            "title_overrides": [{"id": "docs",
+                                 "title": "Ledger README with two-resource examples"}],
+            "add_tasks": [{"id": "seed_ledger",
+                           "title": "Seed opening ledger balance",
+                           "depends_on": ["storage"]}],
+            "notes": "added ledger seeding for the two-resource model"})
         tasks, path, notes = plan_project(self.project, provider=provider,
                                           audit=self.audit)
         self.assertTrue(path.startswith("llm:"))

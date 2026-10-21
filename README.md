@@ -106,12 +106,24 @@ saarch plan --dir myproject --planner deterministic   # force the baseline
 Without these variables the pipeline plans deterministically and says so —
 no provider, no claim.
 
+**Verified live**: a full pipeline run planned by an LLM through a local
+keyless OpenProvider gateway (free `llm7/gpt-oss:20b`), merged, validated,
+and delivered to READY — evidence in
+[`examples/llm-planning-run/`](examples/llm-planning-run/audit-trail.jsonl).
+Practical note from that run: `model: "auto"` occasionally routed to
+upstreams that transiently refused the request (HTTP 402 on the free tier);
+the planner retries once and falls back honestly, and pinning a specific
+free model makes runs deterministic.
+
 ## Credits
 
 - AI gateway integration: [OpenProvider](https://github.com/OpenProviderAi/OpenProvider)
   by **[vkop007](https://github.com/vkop007)** and contributors (MIT) — the
   recommended free-tier, OpenAI-compatible endpoint for the LLM planning
-  path.
+  path. Its standalone gateway (`npm run build:gateway && node dist/server.js`)
+  runs locally without the web dashboard, routes to keyless free providers,
+  and is the exact integration verified in
+  `examples/llm-planning-run/`.
 
 ## Security and delivery posture
 
