@@ -386,3 +386,16 @@ class FWBCImmuneMemory(unittest.TestCase):
         miss = self.engine.immune_memory(
             {"pattern_signatures": ["indexing_error"]})
         self.assertEqual(miss["models"], [])
+
+
+class IsoformatZSuffix(unittest.TestCase):
+    """F-ISO-Z-SUFFIX: datetime.fromisoformat rejects trailing 'Z' on
+    Python 3.9/3.10 — caught by the CI version matrix. _utc must
+    normalize it on every version."""
+
+    def test_utc_accepts_z_suffix(self):
+        from saarch.f2c import _utc
+        dt = _utc("2026-10-21T00:00:00Z")
+        self.assertEqual(dt.tzinfo is not None, True)
+        self.assertEqual(dt.year, 2026)
+        self.assertEqual(_utc("2026-10-21T00:00:00+00:00"), dt)

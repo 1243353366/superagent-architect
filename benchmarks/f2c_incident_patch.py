@@ -625,6 +625,74 @@ def main() -> int:
         ["assumption_mismatch", "verification_failure"],
         0.75, "FWBC-003", "2026-10-20T00:20:00Z"))
 
+    # F-ISO-Z-SUFFIX: the CI version matrix caught that fixed 'Z'
+    # timestamps break datetime.fromisoformat on Python 3.9/3.10.
+    # Registered and retired behind its own regression test — the
+    # FWBC layer digesting a failure it found in its own delivery.
+    rec_iso = engine.ingest_failure({
+        "failure_id": "F-ISO-Z-SUFFIX",
+        "schema_version": F2C_SCHEMA_VERSION,
+        "created_at": "2026-10-21T18:12:00Z",
+        "failure_class": "state_integrity",
+        "severity": "S3",
+        "status": "observed",
+        "expected_behavior": {
+            "behavior": "records with ISO-8601 'Z' timestamps validate "
+                        "on every Python version in the CI matrix",
+            "source": "CI version matrix"},
+        "observed_behavior": {
+            "behavior": "datetime.fromisoformat raised on 3.9/3.10; "
+                        "two CI jobs failed on commit 54f152f",
+            "evidence": "CI run logs, Python docs: Z-suffix support "
+                        "added in 3.11"},
+        "fixture_ref": "saarch/f2c.py",
+        "environment_fingerprint": {"python_versions": "3.9-3.13",
+                                    "repo": "superagent-architect"},
+        "root_cause": {"kind": "confirmed",
+                       "explanation": "assumed stdlib behavior is "
+                       "uniform across versions; 'Z' handling differs"},
+        "provenance": {"artifact_hashes": {
+            "saarch/f2c.py": sha256_file(ROOT / "saarch/f2c.py")}}})
+    for status in ("reproduced", "classified", "candidate_created",
+                   "validated"):
+        engine.set_status("F-ISO-Z-SUFFIX", status)
+    engine.retire_failure(
+        "F-ISO-Z-SUFFIX",
+        "tests.test_f2c::IsoformatZSuffix.test_utc_accepts_z_suffix")
+
+    engine.analyze_incident(condition_model(
+        "F-ISO-Z-SUFFIX", "assumption_failure",
+        "ISO-8601 'Z' timestamps broke record validation on Python "
+        "3.9/3.10 — caught by the CI version matrix",
+        ["stdlib behavior assumed uniform across Python versions",
+         "the 'Z' suffix is only accepted by fromisoformat from 3.11"],
+        ["hidden dependency on interpreter version in a stdlib call"],
+        ["isoformat behavior is version-independent"],
+        ["introducing fixed 'Z'-suffixed timestamps into records"],
+        ["CI matrix spanning Python 3.9 through 3.13"],
+        [],
+        [{"name": "version-matrix-in-ci",
+          "description": "every version the system claims to support "
+                         "runs the full suite in CI",
+          "detection_rule": "stdlib behavior differs across versions",
+          "mitigation": "the matrix caught this one before release — "
+                        "this antibody already worked",
+          "status": "implemented",
+          "capability_id": None},
+         {"name": "z-suffix-normalization",
+          "description": "_utc normalizes the Z suffix before parsing",
+          "detection_rule": "fromisoformat rejects a trailing Z",
+          "mitigation": "normalize Z to +00:00; regression-tested on "
+                        "all versions by the matrix",
+          "status": "implemented",
+          "capability_id": None,
+          "regression_test": "tests.test_f2c::IsoformatZSuffix."
+                             "test_utc_accepts_z_suffix"}],
+        ["a live demonstration: the FWBC layer digested a failure "
+         "found in its own delivery"],
+        ["hidden_dependency", "assumption_mismatch"],
+        0.95, "FWBC-005", "2026-10-21T18:15:00Z"))
+
     engine.analyze_incident(condition_model(
         "F-SPEC-SINGULARIZATION", "code_failure",
         "the singularizer stripped characters wrongly from words like "
@@ -652,6 +720,86 @@ def main() -> int:
          "hash-bound, closing a documentation gap"],
         ["naming_ambiguity", "verification_failure"],
         0.9, "FWBC-004", "2026-10-21T01:40:00Z"))
+
+    # F-SUITE-FLAKE: five intermittent suite failures observed across
+    # three days, never reproduced on immediate rerun with zero
+    # changes. Per policy: recorded honestly — root cause stays a
+    # HYPOTHESIS, the failure is NOT retired (no reproducible case, no
+    # regression test), and the antibodies are proposed-only.
+    engine.ingest_failure({
+        "failure_id": "F-SUITE-FLAKE",
+        "schema_version": F2C_SCHEMA_VERSION,
+        "created_at": "2026-10-21T18:40:00Z",
+        "failure_class": "state_integrity",
+        "severity": "S3",
+        "status": "observed",
+        "expected_behavior": {
+            "behavior": "the test suite is deterministic: identical "
+                        "inputs and code produce identical results",
+            "source": "determinism policy"},
+        "observed_behavior": {
+            "behavior": "five unreproduced failures across three days: "
+                        "a zombie-suite failure, a pipeline arm exit, "
+                        "and full-suite failures (one left no captured "
+                        "failing-test name at all)",
+            "evidence": "this conversation's run logs; each passed on "
+                        "immediate rerun with zero changes"},
+        "fixture_ref": FIXTURE,
+        "environment_fingerprint": {"python": sys.version.split()[0],
+                                    "repo": "superagent-architect",
+                                    "note": "isolated snapshot sandboxes "
+                                            "in /tmp; possible timing "
+                                            "contention (hypothesis)"},
+        "root_cause": {"kind": "hypothesis",
+                       "explanation": "timing- or port-dependent "
+                       "contention in isolated sandboxes under load; "
+                       "NOT confirmed — never reproduced on demand"},
+        "provenance": {"artifact_hashes": {
+            FIXTURE: sha256_file(ROOT / FIXTURE)}}})
+    engine.record_disposition(
+        "F-SUITE-FLAKE", "observed",
+        "unreproducible after five observations: left open, not "
+        "retired — retiring requires a reproducible case and a "
+        "regression test; arms already capture output for the next "
+        "occurrence")
+
+    engine.analyze_incident(condition_model(
+        "F-SUITE-FLAKE", "monitoring_failure",
+        "five intermittent, unreproduced suite failures; one left no "
+        "captured failing-test name",
+        ["suite failure paths do not persist the failing test name "
+         "and full output to a durable artifact",
+         "isolated sandboxes may contend on timing or ports under "
+         "load (hypothesis, unconfirmed)"],
+        ["unknown — hypothesis only: possible resource contention in "
+         "throwaway snapshots"],
+        ["tests are deterministic"],
+        ["regeneration churn with many interrupted runs and stale "
+         "/tmp sandboxes"],
+        ["CI matrix and local snapshots share /tmp and ports"],
+        [],
+        [{"name": "suite-failure-ledger",
+          "description": "every suite failure writes test name and "
+                         "full output to a durable log artifact",
+          "detection_rule": "a suite run fails and its output is "
+                            "lost",
+          "mitigation": "append failures (name + output + seed) to a "
+                        "persistent ledger for correlation across "
+                        "runs",
+          "status": "proposed"},
+         {"name": "flake-reproduction-loop",
+          "description": "an observed flake triggers N reruns under "
+                         "load until reproduced or statistically "
+                         "cleared",
+          "detection_rule": "suite passes on rerun after an "
+                            "unexplained failure",
+          "mitigation": "automated retry-with-capture harness; only "
+                        "then can an F2C record be validated",
+          "status": "proposed"}],
+        ["the observation pattern itself is now a tracked database "
+         "entry instead of vanishing between sessions"],
+        ["verification_failure", "hidden_dependency"],
+        0.4, "FWBC-006", "2026-10-21T18:45:00Z"))
 
     immune = engine.immune_memory({})
     report = {

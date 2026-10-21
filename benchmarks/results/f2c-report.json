@@ -1,8 +1,8 @@
 {
  "schema_version": "1.0",
- "generated_at": "2026-10-21T18:09:36.905900+00:00",
+ "generated_at": "2026-10-21T18:17:40.471805+00:00",
  "specimen": "F-Z3-answer-misparse (from preserved zombie Z3)",
- "store_head": "eb1916a4137b289afe107ec39610b86904692ea2d4829e6ccb917439eaa4d635",
+ "store_head": "4ee82ce16f475cb96984d5ef69c70aad75de5a36f2c95033d2fc31aafe132312",
  "zombie_ledger_sha256": "186c04e46e479d01e27e03a2f33155629e2762749820bee45bcf7cced6affbc9",
  "lifecycle": {
   "failure_status": "retired",
@@ -95,8 +95,8 @@
     }
    ],
    "passed": false,
-   "wall_seconds": 0.209,
-   "evaluated_at": "2026-10-21T18:09:36.703989+00:00"
+   "wall_seconds": 0.203,
+   "evaluated_at": "2026-10-21T18:17:40.269845+00:00"
   },
   "regression_guard_candidate": {
    "arms": [
@@ -123,7 +123,7 @@
    ],
    "passed": true,
    "wall_seconds": 0.202,
-   "evaluated_at": "2026-10-21T18:09:36.905733+00:00"
+   "evaluated_at": "2026-10-21T18:17:40.471637+00:00"
   }
  },
  "metrics": {

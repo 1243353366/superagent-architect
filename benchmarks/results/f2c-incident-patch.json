@@ -1,8 +1,8 @@
 {
  "schema_version": "1.0",
- "generated_at": "2026-10-21T18:09:36.290003+00:00",
+ "generated_at": "2026-10-21T18:17:39.880263+00:00",
  "incident": "F-CI-ANCHOR-2026",
- "store_head": "eb1916a4137b289afe107ec39610b86904692ea2d4829e6ccb917439eaa4d635",
+ "store_head": "4ee82ce16f475cb96984d5ef69c70aad75de5a36f2c95033d2fc31aafe132312",
  "evidence_immutable": {
   "fixture_sha256": "16ec0a9cdb5c5c6f",
   "store_verify": true
@@ -77,8 +77,8 @@
    }
   ],
   "passed": true,
-  "wall_seconds": 1.622,
-  "evaluated_at": "2026-10-21T18:09:36.154745+00:00"
+  "wall_seconds": 1.588,
+  "evaluated_at": "2026-10-21T18:17:39.762939+00:00"
  },
  "rejected_experiments": [
   {
@@ -144,7 +144,9 @@
    "F-ZOMBIE-Z1",
    "F-ZOMBIE-Z2",
    "F-SPEC-SINGULARIZATION",
-   "F-CI-ANCHOR-2026"
+   "F-CI-ANCHOR-2026",
+   "F-ISO-Z-SUFFIX",
+   "F-SUITE-FLAKE"
   ],
   "capability_ids": [
    "C-z3-whole-token-matching",
@@ -156,7 +158,7 @@
    "C-probe-unvalidated",
    "C-step-presence-grep"
   ],
-  "durable_dispositions": 10,
+  "durable_dispositions": 12,
   "note": "zombies, historical bugs, and this incident \u2014 one append-only, hash-chained database; query it with FailureToCapabilityEngine.retrieve() or .dispositions(ref)"
  },
  "immune_memory": {
@@ -164,20 +166,27 @@
    "FWBC-001",
    "FWBC-002",
    "FWBC-003",
-   "FWBC-004"
+   "FWBC-005",
+   "FWBC-004",
+   "FWBC-006"
   ],
   "antibodies": [
    "commit-claim-consistency",
+   "flake-reproduction-loop",
    "operator-chain-fail-stop",
    "patch-application-confirmation",
    "postcondition-placement-check",
    "question-immutability",
    "rollback-restores-checkpoint",
-   "suffix-rule-coverage"
+   "suffix-rule-coverage",
+   "suite-failure-ledger",
+   "version-matrix-in-ci",
+   "z-suffix-normalization"
   ],
   "recurring_themes": [
    "assumption_mismatch",
    "automation_trust",
+   "hidden_dependency",
    "naming_ambiguity",
    "verification_failure"
   ],
@@ -185,7 +194,7 @@
  },
  "generalizes": true,
  "generalization_note": "held-out workflow unseen in incident evidence and regression tests",
- "wall_seconds": 1.76,
+ "wall_seconds": 1.71,
  "post_write_verification": {
   "suite": "tests.test_patching (full, incl. IncidentArtifact and ExtendedValidation)",
   "passed": true

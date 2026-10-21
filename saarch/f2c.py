@@ -72,6 +72,8 @@ def _now() -> str:
 
 
 def _utc(timestamp: str) -> datetime:
+    if timestamp.endswith("Z"):        # Python <3.11 rejects the Z
+        timestamp = timestamp[:-1] + "+00:00"   # suffix; normalize it
     dt = datetime.fromisoformat(timestamp)
     if dt.tzinfo is None:
         raise F2CError("timestamps must carry an explicit timezone")
