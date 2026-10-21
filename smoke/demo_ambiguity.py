@@ -21,7 +21,7 @@ def bar(title: str) -> None:
     print("=" * 74)
 
 
-def show(request: str, answer: str | None) -> None:
+def show(request: str, answer=None) -> None:
     print(f"\nREQUEST: “{request}”")
     it = Interpreter()
     report = it.compile(request)
