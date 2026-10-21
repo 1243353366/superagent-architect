@@ -80,13 +80,38 @@ Planning runs in two layers, and the path actually used is always recorded
    validation; anything else falls back to the baseline *and says so* in the
    audit trail. A provider failure is never reported as an LLM plan.
 
+### Recommended gateway: [OpenProvider](https://github.com/OpenProviderAi/OpenProvider)
+
+The planner speaks the standard OpenAI chat-completions protocol, so it works
+with any compatible endpoint — the zero-setup option is
+[OpenProvider](https://github.com/OpenProviderAi/OpenProvider), a lightweight
+local-or-cloud-hosted OpenAI-compatible gateway that auto-routes across
+free-tier AI providers (Groq, NVIDIA, Mistral, Google AI Studio, and 20+ more)
+behind **one** API, with `model: "auto"` picking an available free model:
+
+1. Deploy OpenProvider (one-click on Vercel, or `git clone … && npm install
+   && npm run dev` locally — see its README), add one free provider key in
+   its dashboard (e.g. a Groq or NVIDIA free key), and generate an
+   OpenProvider API key.
+2. Point saarch at it — no custom API of your own needed:
+
 ```bash
-export SAARCH_LLM_URL="https://your-endpoint/v1/chat/completions"  # OpenAI-compatible
-export SAARCH_MODEL="your-model"
-export SAARCH_LLM_KEY="..."           # optional for local gateways
+export SAARCH_LLM_URL="https://your-openprovider-host/v1/chat/completions"
+export SAARCH_LLM_KEY="opk_..."       # your OpenProvider API key
+export SAARCH_MODEL="auto"            # OpenProvider auto-routes to a free model
 saarch plan --dir myproject            # planning path: llm:http:...
 saarch plan --dir myproject --planner deterministic   # force the baseline
 ```
+
+Without these variables the pipeline plans deterministically and says so —
+no provider, no claim.
+
+## Credits
+
+- AI gateway integration: [OpenProvider](https://github.com/OpenProviderAi/OpenProvider)
+  by **[vkop007](https://github.com/vkop007)** and contributors (MIT) — the
+  recommended free-tier, OpenAI-compatible endpoint for the LLM planning
+  path.
 
 ## Security and delivery posture
 

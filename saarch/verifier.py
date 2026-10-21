@@ -20,6 +20,7 @@ import hashlib
 import re
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -45,6 +46,35 @@ SECRET_PATTERNS = [
 _PLACEHOLDER_ALLOWLIST = ("values", "changeme", "replace-me", "example", "<your")
 
 
+def _stdlib_modules(stdlib_names=None, builtin_names=None,
+                    stdlib_dir=None) -> frozenset:
+    """The set of top-level standard-library module names.
+
+    On Python >= 3.10 this is `sys.stdlib_module_names` (plus builtins). On
+    older interpreters (the CI matrix includes 3.9) it is derived from the
+    stdlib directory via sysconfig, so the provenance check never silently
+    degrades into flagging the entire standard library as third-party.
+    """
+    names = set(builtin_names if builtin_names is not None
+                else sys.builtin_module_names)
+    if stdlib_names is not None:
+        names |= set(stdlib_names)
+    elif hasattr(sys, "stdlib_module_names"):
+        names |= set(sys.stdlib_module_names)
+    else:
+        directory = Path(stdlib_dir if stdlib_dir is not None
+                         else sysconfig.get_path("stdlib"))
+        try:
+            for p in directory.iterdir():
+                if p.suffix == ".py":
+                    names.add(p.stem)
+                elif p.is_dir() and p.name != "__pycache__":
+                    names.add(p.name)
+        except OSError:
+            pass  # honest degradation: an empty allowlist fails loudly, not silently
+    return frozenset(names)
+
+
 def check_dependency_provenance(app_dir: Path) -> CheckResult:
     """Dependency provenance: the generated app must be standard-library only.
 
@@ -54,6 +84,7 @@ def check_dependency_provenance(app_dir: Path) -> CheckResult:
     must be explicit and justified — never a silent template default.
     """
     app_dir = Path(app_dir)
+    stdlib = _stdlib_modules()
     local = {f.stem for f in app_dir.glob("*.py")} | {"app", "tests"}
     problems = []
     for py in sorted(app_dir.rglob("*.py")):
@@ -69,7 +100,7 @@ def check_dependency_provenance(app_dir: Path) -> CheckResult:
             elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
                 names = [node.module.split(".")[0]]
             for n in names:
-                if n not in getattr(sys, "stdlib_module_names", ()) and n not in local:
+                if n not in stdlib and n not in local:
                     problems.append(f"{py.relative_to(app_dir)} imports third-party module '{n}'")
     req = app_dir / "requirements.txt"
     if req.is_file():
