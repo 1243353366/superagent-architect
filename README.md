@@ -183,6 +183,12 @@ candidate claims feeding the same gate, not as a replacement for it.
 
 ## Human Decision Console (launch in the browser)
 
+Status: **usable, verified live** — setup with MFA, login with
+password + authenticator code, decision inbox reachable, wrong
+password and wrong code refused (verified end-to-end against a
+running server). The remaining gap is production identity, not
+usability: see the SSO paragraph below.
+
 The console tells the human what happened in plain language, shows
 the evidence and uncertainty behind it, and lets them decide,
 defer, request more evidence, or reject — decisions that contradict

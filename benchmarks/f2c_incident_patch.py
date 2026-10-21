@@ -1206,6 +1206,37 @@ def main() -> int:
         0.4, "FWBC-006", "2026-10-21T18:45:00Z",
         scan=SCANS["FWBC-006"]))
 
+    # --- the human's standing intent, on the record: decisions that
+    # contradict a registered goal directive are refused with the
+    # directive quoted (the goal guard runs inside answer_gap)
+    engine.register_goal_directive(
+        "every failure must be independently reproducible, "
+        "independently detectable, and independently traceable to a "
+        "validated capability",
+        "owner direction 2026-10-21: independent detectability is "
+        "the point of the joint Z1/Z2 database",
+        ["accept shared coverage", "one test can watch both",
+         "skip the mutation matrix"])
+    engine.register_goal_directive(
+        "no claim of success without evidence verified against the "
+        "repository",
+        "standing instruction: never claim unverified success",
+        ["trust the green checkmark", "skip the claim check",
+         "ship it unverified", "accept success without evidence"])
+    engine.register_goal_directive(
+        "silence is never approval; gaps close only with a human "
+        "decision and passing verification",
+        "standing instruction: human-guided immune memory",
+        ["close the gap without verification", "assume approval",
+         "no human needed", "close it silently"])
+    engine.register_goal_directive(
+        "secrets, credentials, and privileged operations require "
+        "explicit approval",
+        "standing instruction: explicit handling of secrets, "
+        "authentication, authorization, and deployment permissions",
+        ["deploy without approval", "publish without approval",
+         "commit the secret", "skip the approval"])
+
     # F-GATE-CHAIN (2026-10-21, this delivery): the claim check ran,
     # FAILED on one overstated report claim, and the commit shipped
     # anyway — the operator placed git add outside the check's &&

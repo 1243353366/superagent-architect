@@ -1,8 +1,8 @@
 {
  "schema_version": "1.0",
- "generated_at": "2026-10-21T19:31:43.402397+00:00",
+ "generated_at": "2026-10-21T19:36:15.969968+00:00",
  "incident": "F-CI-ANCHOR-2026",
- "store_head": "45fff63c3b73c214bebaca1d6b873956a503a598b422a95d94e1662d0b947161",
+ "store_head": "9b57205baa826a7eb62bf1cf60f073f47cae30ff28162202c895702539158faa",
  "evidence_immutable": {
   "fixture_sha256": "16ec0a9cdb5c5c6f",
   "store_verify": true
@@ -80,8 +80,8 @@
    }
   ],
   "passed": true,
-  "wall_seconds": 1.617,
-  "evaluated_at": "2026-10-21T19:31:43.277375+00:00"
+  "wall_seconds": 1.608,
+  "evaluated_at": "2026-10-21T19:36:15.847447+00:00"
  },
  "rejected_experiments": [
   {
@@ -300,7 +300,7 @@
  },
  "generalizes": true,
  "generalization_note": "held-out workflow unseen in incident evidence and regression tests",
- "wall_seconds": 4.84,
+ "wall_seconds": 4.87,
  "post_write_verification": {
   "suite": "tests.test_patching (full, incl. IncidentArtifact and ExtendedValidation)",
   "passed": true
