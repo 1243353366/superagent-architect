@@ -186,8 +186,9 @@ candidate claims feeding the same gate, not as a replacement for it.
 Status: **usable, verified live** — setup with MFA, login with
 password + authenticator code, decision inbox reachable, wrong
 password and wrong code refused (verified end-to-end against a
-running server). The remaining gap is production identity, not
-usability: see the SSO paragraph below.
+running server). Independent use is complete as shipped; Google /
+company SSO is an optional add-on, never a requirement — see the
+opt-in paragraph below.
 
 The console tells the human what happened in plain language, shows
 the evidence and uncertainty behind it, and lets them decide,
@@ -212,16 +213,17 @@ python -m saarch.console           # refuses to start without --setup
   seed); passwords and codes never enter source, logs, or the
   database.
 
-Production identity — Google and company accounts: real Google /
-company SSO sign-in uses OAuth 2.0 / OpenID Connect with
-organization-enforced MFA (or passkeys / security keys). This
-requires the owner's OAuth client credentials, a validated redirect
-URI under HTTPS, least-privilege scopes, and company administrator
-approval — none of which exist in this repository, so the console
-does not simulate or claim them. Local console authentication is
-local development auth, clearly distinct from production identity
-and access management; production deployment stays blocked until
-an approved identity provider with enforced MFA is configured.
+Google and company accounts — an option, not the default: the
+console ships complete for independent use with its mandatory
+password + authenticator MFA, and requires nothing else to run.
+Google / company SSO sign-in via OAuth 2.0 / OpenID Connect with
+organization-enforced MFA (or passkeys / security keys) is
+something an organization can ADD, by choice, after deploying the
+console independently — opt-in, configured with the owner's OAuth
+client credentials, a validated HTTPS redirect URI,
+least-privilege scopes, and company administrator approval. It is
+NOT implemented in this repository and not simulated or claimed;
+it stays off by default, and the console never requires it.
 
 ## Release gate
 
@@ -260,10 +262,12 @@ Frozen after three gates, each verified against one commit:
   be stopped by human review of the diff.
 - Release claims cover the release-critical artifacts, not every
   file; the marker is attestation, the re-verified claims are proof.
-- Google / company SSO and production identity are NOT implemented
-  and not claimed: they require owner OAuth credentials,
-  administrator approval, and enforced MFA; production deployment
-  stays blocked until an approved identity provider is configured.
+- Google / company SSO is an optional, opt-in integration for
+  organizations that deploy the console independently and then
+  choose it (OAuth 2.0 / OpenID Connect, enforced MFA,
+  administrator approval); it is NOT implemented yet, NOT the
+  default, and NOT required — built-in MFA authentication makes
+  independent use complete.
 - The LLM planning path needs an external OpenAI-compatible
   gateway; the deterministic planner is the in-repo floor.
 - Generated demos stay local/private by default.
