@@ -6,3 +6,4 @@ build/
 .venv/
 *.db
 site/
+benchmarks/results/console-auth.json

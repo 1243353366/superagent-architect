@@ -181,6 +181,49 @@ unquantified performance words). LLM-generated interpretations and the full
 failure-discovery algorithm are future work — they would arrive as more
 candidate claims feeding the same gate, not as a replacement for it.
 
+## Human Decision Console (launch in the browser)
+
+The console tells the human what happened in plain language, shows
+the evidence and uncertainty behind it, and lets them decide,
+defer, request more evidence, or reject — decisions that contradict
+a registered goal directive are refused with the directive quoted.
+
+```bash
+python -m saarch.console --setup   # one-time: prints password + TOTP URI
+python -m saarch.console           # refuses to start without --setup
+# then open http://127.0.0.1:7777
+```
+
+- Prerequisites: Python 3.9+ (stdlib only, no pip installs).
+- Authentication: password + authenticator app code. MFA is
+  mandatory — there is no skip path (verified by
+  `tests/test_console.py`, not merely configured).
+- Troubleshooting: "MFA is mandatory" means run `--setup` first;
+  bad-credential refusals mean wrong password or expired code
+  (codes rotate every 30s, 30s drift accepted).
+- Shutdown: Ctrl+C. Credentials live only in the gitignored
+  `benchmarks/results/console-auth.json` (salted PBKDF2 hash + TOTP
+  seed); passwords and codes never enter source, logs, or the
+  database.
+
+Production identity — Google and company accounts: real Google /
+company SSO sign-in uses OAuth 2.0 / OpenID Connect with
+organization-enforced MFA (or passkeys / security keys). This
+requires the owner's OAuth client credentials, a validated redirect
+URI under HTTPS, least-privilege scopes, and company administrator
+approval — none of which exist in this repository, so the console
+does not simulate or claim them. Local console authentication is
+local development auth, clearly distinct from production identity
+and access management; production deployment stays blocked until
+an approved identity provider with enforced MFA is configured.
+
+## Release gate
+
+`python scripts/release_gate.py` fails any commit whose message was
+not produced through the claim check — the F-GATE-CHAIN lesson
+(commit `fadcadb` shipped despite a failed gate). CI runs it on
+every push: the operator cannot skip the gate where it matters.
+
 ## Credits
 
 - AI gateway integration: [OpenProvider](https://github.com/OpenProviderAi/OpenProvider)

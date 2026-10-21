@@ -208,6 +208,12 @@ class Store:
                 validate_gap(row)
             elif "fwbc_id" in row:
                 validate_fwbc(row)
+            elif row.get("record_kind") == "goal_directive":
+                if not (row.get("directive", "").strip()
+                        and row.get("rationale", "").strip()
+                        and row.get("refusal_triggers")):
+                    raise F2CError("malformed goal_directive row — "
+                                   "schema drift fails closed")
             elif row.get("record_kind") == "human_decision":
                 if row.get("authority") != "human":
                     raise F2CError("human_decision row without "
@@ -399,6 +405,22 @@ class FailureToCapabilityEngine:
 
     def __init__(self, store_path: Path, repo_root: Path):
         self.store = Store(store_path)
+        # durable gap status: gap rows are append-only, so the current
+        # status is DERIVED from the disposition trail at load — never
+        # rewritten. A decision made in one process is visible to the
+        # next (the console runs per-request engines).
+        for row in self.store.records:
+            if "gap_id" not in row or row.get("record_kind") is not None:
+                continue
+            trail = [d for d in self.store.records
+                     if d.get("record_kind") == "disposition"
+                     and d.get("ref") == row["gap_id"]]
+            if trail:
+                row["status"] = {
+                    "closed": "closed",
+                    "answered": "answered",
+                    "verification_failed": "answered"
+                }.get(trail[-1]["status"], "open")
         self.repo_root = Path(repo_root)
 
     # Stage 0 — ingest (validate + referential integrity + idempotency)
@@ -493,6 +515,52 @@ class FailureToCapabilityEngine:
                              for ab in m["antibodies"]})
         return {"models": models, "antibodies": antibodies}
 
+    # ------------------ tell the human, let them decide, refuse harm
+    def register_goal_directive(self, directive: str, rationale: str,
+                                refusal_triggers) -> Dict[str, Any]:
+        """Goal directives are the human's standing intent, stored as
+        their own append-only record kind. Decisions that contradict
+        them are refused — the human overrules by AMENDING the
+        directive on the record, never by silently contradicting it."""
+        for r in self.store.records:
+            if r.get("record_kind") == "goal_directive":
+                if r["directive"] == directive:
+                    if (r["rationale"] == rationale
+                            and r["refusal_triggers"] ==
+                            list(refusal_triggers)):
+                        return r            # idempotent replay
+                    raise F2CError("goal directive exists with "
+                                   "different content — refusing to "
+                                   "fork the human's intent")
+        count = sum(1 for r in self.store.records
+                    if r.get("record_kind") == "goal_directive")
+        return self.store.append({
+            "record_kind": "goal_directive",
+            "directive_id": f"GD-{count + 1}",
+            "schema_version": F2C_SCHEMA_VERSION,
+            "directive": directive, "rationale": rationale,
+            "refusal_triggers": list(refusal_triggers),
+            "authority": "human", "at": _now()})
+
+    def check_decision_against_goals(self, decision: str,
+                                     selected_option: str):
+        """Returns None when the decision is allowed, or the refusal
+        message when it harms a registered goal directive. Explicit,
+        auditable triggers — not guessed sentiment."""
+        hay = f"{decision} {selected_option}".lower()
+        for r in self.store.records:
+            if r.get("record_kind") != "goal_directive":
+                continue
+            for trig in r["refusal_triggers"]:
+                if trig.lower() in hay:
+                    return ("refused: this decision harms the goal "
+                            f"directive \"{r['directive']}\" "
+                            f"(matched: \"{trig}\"). To overrule it, "
+                            "amend the directive on the record first "
+                            "— the human decides by changing the "
+                            "goal, not by contradicting it")
+        return None
+
     # ------------------ human-guided uncertainty resolution
     def open_gap(self, record: Dict[str, Any]) -> Dict[str, Any]:
         """Register a detected gap: unresolved evidence gaps, ambiguous
@@ -515,12 +583,17 @@ class FailureToCapabilityEngine:
         return self.store.append(record)
 
     def answer_gap(self, gap_id: str, decision: str,
-                   selected_option: str) -> Dict[str, Any]:
+                   selected_option: str,
+                   response_kind: str = "decide") -> Dict[str, Any]:
         """Record a HUMAN decision as its own record kind. The engine
         never authors these rows; the decision defines intent only —
         it neither proves technical correctness nor authorizes
         anything beyond existing permissions. 'open' becomes
         'answered'; the gap is NOT closed."""
+        allowed = ("decide", "defer", "request_evidence", "reject")
+        if response_kind not in allowed:
+            raise F2CError(f"response_kind {response_kind!r} not in "
+                           f"{allowed}")
         gap = self.store.find("gap_id", gap_id)
         if gap is None or "gap_id" not in gap:
             raise F2CError(f"unknown gap {gap_id!r}")
@@ -528,15 +601,23 @@ class FailureToCapabilityEngine:
             raise F2CError(f"gap {gap_id} is {gap['status']} — "
                            "verified or closed gaps accept no new "
                            "decisions")
+        # non-binding responses (defer, request_evidence) never block a
+        # later final decision; binding ones (decide, reject) do
         for r in self.store.records:
             if (r.get("record_kind") == "human_decision"
                     and r.get("gap_id") == gap_id):
                 if (r["decision"] == decision
-                        and r["selected_option"] == selected_option):
+                        and r["selected_option"] == selected_option
+                        and r["response_kind"] == response_kind):
                     return r                # idempotent replay
-                raise F2CError("a different human decision already "
-                               "exists for this gap — refusing to "
-                               "fork the decision")
+                if r["response_kind"] in ("decide", "reject"):
+                    raise F2CError("a different human decision "
+                                   "already exists for this gap — "
+                                   "refusing to fork the decision")
+        refusal = self.check_decision_against_goals(decision,
+                                                     selected_option)
+        if refusal:
+            raise F2CError(refusal)
         count = sum(1 for r in self.store.records
                     if r.get("record_kind") == "human_decision")
         row = {"record_kind": "human_decision",
@@ -544,11 +625,18 @@ class FailureToCapabilityEngine:
                "schema_version": F2C_SCHEMA_VERSION,
                "gap_id": gap_id, "decision": decision,
                "selected_option": selected_option,
+               "response_kind": response_kind,
                "authority": "human", "at": _now()}
         self.store.append(row)
-        gap["status"] = "answered"
-        self.record_disposition(gap_id, "answered", decision[:200],
-                                selected_option=selected_option)
+        if response_kind == "decide":
+            gap["status"] = "answered"
+            self.record_disposition(gap_id, "answered",
+                                    decision[:200],
+                                    selected_option=selected_option)
+        else:
+            self.record_disposition(
+                gap_id, response_kind, decision[:200],
+                selected_option=selected_option)
         return row
 
     def verify_gap_closure(self, gap_id: str, name: str, passed: bool,
