@@ -206,6 +206,10 @@ class Project:
     intake: Optional[ProjectIntake] = None
     spec: Optional[ProjectSpec] = None
     plan: List[PlanTask] = field(default_factory=list)
+    # planning provenance: "deterministic" or "llm:<provider>" — the plan is
+    # only claimed as LLM-backed when a provider actually produced it
+    plan_path: str = "deterministic"
+    plan_notes: str = ""
     verification: Optional[VerificationReport] = None
     blocked_reason: str = ""
     slug: str = "project"
@@ -269,6 +273,8 @@ class Project:
             s["questions"] = [ClarifyingQuestion(**q) for q in s.get("questions", [])]
             p.spec = ProjectSpec(**s)
         p.plan = [PlanTask(**t) for t in d.get("plan", [])]
+        p.plan_path = d.get("plan_path", "deterministic")
+        p.plan_notes = d.get("plan_notes", "")
         if d.get("verification"):
             v = d["verification"]
             p.verification = VerificationReport(

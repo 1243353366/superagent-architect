@@ -37,11 +37,13 @@ def slugify(text: str) -> str:
 
 def singularize(word: str) -> str:
     w = word.strip().lower()
-    if w.endswith("ies"):
+    if w.endswith("ies"):          # policies -> policy
         return w[:-3] + "y"
-    if w.endswith("ses"):
+    if w.endswith("sses"):         # classes, addresses -> class, address
         return w[:-2]
-    if w.endswith("s") and not w.endswith("ss"):
+    if w.endswith(("ss", "us")):   # status, virus, bonus stay singular
+        return w
+    if w.endswith("s"):            # expenses -> expense, houses -> house
         return w[:-1]
     return w
 

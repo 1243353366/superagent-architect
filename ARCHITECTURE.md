@@ -51,7 +51,7 @@ decisions, not code-gen.
 
 | Concern | Module | What it actually does |
 |---|---|---|
-| Planning | `generator.plan_tasks` | dependency-ordered build plan (9 tasks) before any file is written |
+| Planning | `generator.plan_tasks` + `planner.py` | dependency-ordered baseline plan (9 tasks) before any file is written; optional LLM refinement (any OpenAI-compatible endpoint) validated against the baseline — must keep every baseline task and stay an acyclic DAG, otherwise an honest fallback is recorded (`plan_path` in project.json) |
 | Tool use | `saarch/provider.py` | model-provider abstraction; LiteLLM integration point for entity enrichment; deterministic path always runs first, provider use is recorded |
 | Autonomous repair | `verifier.repair` | strategy ladder (full regen → minimal regen), bounded by repair budget and stagnation detection |
 | Refusal authority | `saarch/policy.py` | prohibited work → `REFUSED` (exit 3), non-overridable — no flag bypasses it |
@@ -76,9 +76,13 @@ spec as their single source of truth.
 
 Nothing is believed that was not executed.
 
-- **Isolation** — every check runs in a subprocess with a hard timeout inside
-  the generated project directory; the host workspace is never executed
-  against. E2B slots into the same interface as an alternative backend.
+- **Isolation** — every executable check runs inside `execution.py`'s
+  throwaway snapshot of the generated project: a temporary directory copy
+  (caches and databases excluded), a hard subprocess timeout, and a scrubbed
+  environment (only PATH/locale essentials are inherited — tokens and model
+  keys stay out of the sandbox). Side effects die with the sandbox; the real
+  project tree is only ever written by generation. E2B slots into the same
+  interface as an alternative backend.
 - **Real verification** — `verifier.verify`: `compileall`, the generated
   project's own test suite, and a credential scan. Checks that cannot run are
   reported `SKIP`, never `PASS`.

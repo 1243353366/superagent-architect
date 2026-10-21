@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 from .audit import AuditLog
+from .execution import run_check_isolated
 from .generator import generate
 from .models import CheckResult, Project, VerificationReport
 
@@ -88,13 +89,19 @@ def verify(project: Project, workdir: Path, audit: AuditLog | None = None) -> Ve
 
     checks: List[CheckResult] = []
 
-    rc, out, err, timed_out = _run([sys.executable, "-m", "compileall", "-q", "app"], app_dir)
+    # Isolated execution: every executable check runs inside a throwaway
+    # snapshot of the generated project (execution.py) — a scrubbed
+    # environment, a hard timeout, and no writes to the real tree.
+    rc, out, err, timed_out = run_check_isolated(
+        [sys.executable, "-m", "compileall", "-q", "app"], app_dir,
+        audit=audit, name="compileall")
     checks.append(CheckResult(
         "compileall", passed=(rc == 0 and not timed_out), executed=True,
         detail=(err or out or "")[-2000:] or "clean"))
 
-    rc, out, err, timed_out = _run(
-        [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"], app_dir)
+    rc, out, err, timed_out = run_check_isolated(
+        [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"],
+        app_dir, audit=audit, name="generated-project-tests")
     passed = (rc == 0 and not timed_out)
     tail = "\n".join((out or "").strip().splitlines()[-12:])
     checks.append(CheckResult(

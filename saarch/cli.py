@@ -29,6 +29,7 @@ from .models import (
     REFUSED, SPECIFIED, VERIFYING,
     Project, ProjectIntake, ValidationError,
 )
+from .planner import get_planning_provider, plan_project
 from .policy import screen_intake
 from .provider import get_provider
 from .spec_builder import build_spec, slugify
@@ -193,14 +194,24 @@ def cmd_spec(args) -> None:
 def cmd_plan(args) -> None:
     workdir = _workdir(args)
     project = _load_or_fail(workdir)
+    audit = AuditLog(workdir)
     if project.state == PLANNED:
         print("already PLANNED (run 'saarch generate')")
         return
     project.transition(PLANNED)
-    project.plan = plan_tasks()
+    # Deterministic baseline first; an LLM provider (when configured) may
+    # refine it — any invalid or failed refinement falls back honestly.
+    provider = (None if getattr(args, "planner", "auto") == "deterministic"
+                else get_planning_provider())
+    tasks, path, notes = plan_project(project, provider=provider, audit=audit)
+    project.plan = tasks
+    project.plan_path = path
+    project.plan_notes = notes
     project.save(workdir)
-    AuditLog(workdir).append("planned", tasks=[t.id for t in project.plan])
-    print(f"PLANNED — {len(project.plan)} tasks in dependency order")
+    print(f"PLANNED — {len(project.plan)} tasks in dependency order "
+          f"(planning path: {path})")
+    if notes:
+        print(f"  planner notes: {notes}")
 
 
 def cmd_generate(args) -> None:
@@ -352,7 +363,8 @@ def cmd_run(args) -> None:
     project = _load_or_fail(workdir)
     accept = bool(getattr(args, "accept_assumptions", False))
     for step in (cmd_spec, cmd_plan, cmd_generate, cmd_verify):
-        step(argparse.Namespace(dir=args.dir, accept_assumptions=accept))
+        step(argparse.Namespace(dir=args.dir, accept_assumptions=accept,
+                                planner=getattr(args, "planner", "auto")))
         project = _load_or_fail(workdir)
         if project.state == CHALLENGED:
             print("\nPipeline paused at the challenge gate (see above). "
@@ -443,6 +455,11 @@ def build_parser() -> argparse.ArgumentParser:
                         ("status", "show project state")):
         sp = sub.add_parser(name, help=help_)
         sp.add_argument("--dir", default=".")
+        if name == "plan":
+            sp.add_argument("--planner", choices=("auto", "deterministic"),
+                            default="auto",
+                            help="planning path: auto = LLM refinement when "
+                                 "configured, deterministic = baseline only")
         sp.set_defaults(func=getattr(sys.modules[__name__], f"cmd_{name}"))
 
     psv = sub.add_parser("serve", help="launch the generated app in your browser")
@@ -462,6 +479,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     pr = sub.add_parser("run", parents=[intake], help="full pipeline in one command")
     pr.add_argument("--dir", default=".")
+    pr.add_argument("--planner", choices=("auto", "deterministic"), default="auto",
+                    help="planning path: auto = LLM refinement when configured, "
+                         "deterministic = baseline plan only")
     pr.add_argument("--deliver", action="store_true", help="deliver after READY")
     pr.add_argument("--github", action="store_true",
                     help="deliver to GitHub (requires GITHUB_TOKEN)")
