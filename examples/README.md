@@ -48,10 +48,12 @@ READY — verification passed
 The same generated application was delivered to a live repository by the
 tool's own delivery layer (Stage F):
 
-**https://github.com/1243353366/saarch-demo-task-tracker**
+**https://github.com/1243353366/saarch-demo-task-tracker** (private)
 
 13 files pushed in a single commit via the GitHub REST API, using only the
-Python standard library.
+Python standard library. Delivered as a **private repository**: generated
+applications ship without authentication, so they stay private until
+appropriate access controls exist.
 
 ---
 
@@ -115,5 +117,7 @@ app too (real executions, from `ledger-workdir/audit.jsonl`):
 
 ## Delivered to GitHub
 
-**https://github.com/1243353366/saarch-demo-expense-ledger** — 14 files pushed
-by `saarch deliver --github` via the REST API, stdlib only.
+**https://github.com/1243353366/saarch-demo-expense-ledger** (private) —
+14 files pushed by `saarch deliver --github` via the REST API, stdlib only.
+Private by the delivery layer's default: no authentication layer was
+generated, so the repository is not published.

@@ -64,7 +64,10 @@ class GitHubDelivery:
             raise RuntimeError(f"GitHub API {method} {path} -> {exc.code}: {detail}") from exc
 
     def create_repo(self, name: str, description: str = "",
-                    private: bool = False) -> dict:
+                    private: bool = True) -> dict:
+        """Create the repository. PRIVATE by default: generated applications
+        ship without authentication, so publishing to a public target is an
+        explicit, approved decision — never a default."""
         # auto_init seeds the repo with an initial commit: the git-trees API
         # cannot build on a completely empty repository (409).
         try:
@@ -123,18 +126,24 @@ class GitHubDelivery:
         return f"https://github.com/{full_name}"
 
     def deliver(self, generated_dir: Path, repo_name: str,
-                description: str = "") -> dict:
-        """Full delivery: create repo, push every file, return the URL."""
+                description: str = "", private: bool = True) -> dict:
+        """Full delivery: create repo (private by default), push every file.
+
+        ``private`` must be an explicit decision made and approved at the CLI
+        layer; this method records nothing and assumes nothing about it.
+        """
         generated_dir = Path(generated_dir)
         files = {}
         for f in sorted(generated_dir.rglob("*")):
             if f.is_file() and "__pycache__" not in f.parts and f.suffix != ".db":
                 files[str(f.relative_to(generated_dir))] = f.read_text(encoding="utf-8")
-        repo = self.create_repo(repo_name, description=description)
+        repo = self.create_repo(repo_name, description=description,
+                                private=private)
         url = self.push_tree(repo["full_name"], files,
                              "Initial delivery by superagent-architect")
         return {"repo_url": url, "repo_name": repo["full_name"],
-                "files": len(files), "delivered_at": time.strftime("%Y-%m-%dT%H:%M:%SZ")}
+                "files": len(files), "private": private,
+                "delivered_at": time.strftime("%Y-%m-%dT%H:%M:%SZ")}
 
 
 def get_github_token() -> str:

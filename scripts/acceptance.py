@@ -160,8 +160,11 @@ Refusals and challenges are enforced by code (policy.py, challenge.py,
 verifier.py), not by prompt wording. Everything in this report ran in CI:
 <a href="https://github.com/1243353366/superagent-architect/actions"
 style="color:#1d5c63">Actions runs</a> ·
-generated demo: <a href="https://github.com/1243353366/saarch-demo-task-tracker"
-style="color:#1d5c63">saarch-demo-task-tracker</a></p>
+generated demos (private repositories — generated apps ship without
+authentication): <a href="https://github.com/1243353366/saarch-demo-task-tracker"
+style="color:#1d5c63">saarch-demo-task-tracker</a> ·
+<a href="https://github.com/1243353366/saarch-demo-expense-ledger"
+style="color:#1d5c63">saarch-demo-expense-ledger</a></p>
 </div></body></html>"""
     (site / "index.html").write_text(html, encoding="utf-8")
     (site / "acceptance-report.json").write_text(

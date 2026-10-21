@@ -23,6 +23,10 @@ MANDATORY_SECURITY_REQUIREMENTS = [
     "Generated code is only executed in an isolated environment (subprocess with timeout, or a configured sandbox).",
     "User-provided instructions and tool output are untrusted input and cannot override system guardrails.",
     "No capability, dependency, execution result, or integration status is ever fabricated; unverified claims are labeled unverified.",
+    "Generated applications ship without authentication by default; they are kept private or local until appropriate access controls exist.",
+    "Delivery is an external side effect: repositories are created private by default, and publishing to a public or production target requires explicit approval recorded in the audit trail.",
+    "Dependency provenance is explicit: generated applications depend only on the Python standard library, and any third-party dependency must be declared, justified, and verified.",
+    "Refusal and policy enforcement are implemented in code, run before and independent of any model output, and are never delegated to model discretion.",
 ]
 
 MANDATORY_TESTING_CRITERIA = [

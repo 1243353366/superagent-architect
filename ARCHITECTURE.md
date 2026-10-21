@@ -54,7 +54,7 @@ decisions, not code-gen.
 | Planning | `generator.plan_tasks` + `planner.py` | dependency-ordered baseline plan (9 tasks) before any file is written; optional LLM refinement (any OpenAI-compatible endpoint) validated against the baseline — must keep every baseline task and stay an acyclic DAG, otherwise an honest fallback is recorded (`plan_path` in project.json) |
 | Tool use | `saarch/provider.py` | model-provider abstraction; LiteLLM integration point for entity enrichment; deterministic path always runs first, provider use is recorded |
 | Autonomous repair | `verifier.repair` | strategy ladder (full regen → minimal regen), bounded by repair budget and stagnation detection |
-| Refusal authority | `saarch/policy.py` | prohibited work → `REFUSED` (exit 3), non-overridable — no flag bypasses it |
+| Refusal authority | `saarch/policy.py` | prohibited work → `REFUSED` (exit 3), non-overridable — no flag bypasses it. Runs at intake, before and independent of any model; refusal is never delegated to model discretion |
 | Constructive resistance | `saarch/challenge.py` | contradictory/underspecified input → `CHALLENGED` (exit 4); proceeds only with recorded acceptance, and guardrails win over conflicting capabilities |
 
 ## 3. Engineering engine — database schemas, migrations, backend, UI, testing
@@ -84,8 +84,9 @@ Nothing is believed that was not executed.
   project tree is only ever written by generation. E2B slots into the same
   interface as an alternative backend.
 - **Real verification** — `verifier.verify`: `compileall`, the generated
-  project's own test suite, and a credential scan. Checks that cannot run are
-  reported `SKIP`, never `PASS`.
+  project's own test suite, a credential scan, and a dependency-provenance
+  check (stdlib-only imports; requirements.txt declares nothing). Checks that
+  cannot run are reported `SKIP`, never `PASS`.
 - **Bounded retries** — the repair loop is capped by a repair budget AND by
   failure-signature stagnation: the same failure repeating across different
   strategies stops the loop early, writes a diagnosis, and proposes a better
@@ -97,7 +98,10 @@ You end up owning portable artifacts, not a platform dependency.
 
 - **GitHub integration** — `delivery.py`: full repository creation and commit
   delivery over the REST API with the standard library only; token read from
-  `GITHUB_TOKEN` at call time, never persisted.
+  `GITHUB_TOKEN` at call time, never persisted. Repositories are created
+  **private by default** (generated apps ship without authentication), and
+  the CLI requires explicit `--approve` before any external side effect —
+  `--public` is a further, warned opt-in for production/public targets.
 - **Export** — repository-ready zip (`export_zip`), always available.
 - **Versioning** — `project.json` (full spec + state) and the append-only
   `audit.jsonl` trail record every stage, decision, and check.

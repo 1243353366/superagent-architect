@@ -331,20 +331,46 @@ def cmd_deliver(args) -> None:
         raise SystemExit(2)
     generated = workdir / "generated" / project.slug
     if args.github:
+        if not getattr(args, "approve", False):
+            # Delivery is an external side effect. The plan is printed and the
+            # command stops: publishing requires explicit, recorded approval.
+            n = sum(1 for f in generated.rglob("*")
+                    if f.is_file() and "__pycache__" not in f.parts
+                    and f.suffix != ".db")
+            visibility = ("PUBLIC (generated apps ship without authentication "
+                          "— make sure appropriate access controls exist)"
+                          if getattr(args, "public", False) else "PRIVATE")
+            print("REFUSED to deliver without approval — delivery is an "
+                  "external side effect.")
+            print(f"  plan: repository '{args.repo_name or project.slug}', "
+                  f"visibility {visibility}, {n} files pushed to GitHub")
+            print("  to proceed: re-run with --approve "
+                  "(add --public only if publishing to a public/production "
+                  "target is an explicit, intended decision)")
+            raise SystemExit(2)
         token = get_github_token()
         if not token:
             print("error: GitHub delivery requires the GITHUB_TOKEN "
                   "environment variable. Falling back to zip export.")
             args.github = False
         else:
+            public = bool(getattr(args, "public", False))
+            if public:
+                print("  WARNING: publishing a generated application to a "
+                      "PUBLIC target. Generated apps ship without "
+                      "authentication; verify appropriate access controls "
+                      "exist first.")
             client = GitHubDelivery(token)
             result = client.deliver(
                 generated,
                 repo_name=args.repo_name or project.slug,
-                description=(project.spec.instructions or project.slug)[:200].strip())
+                description=(project.spec.instructions or project.slug)[:200].strip(),
+                private=not public)
             audit.append("delivered_github", repo=result["repo_url"],
-                         files=result["files"])
-            print(f"DELIVERED — {result['files']} files -> {result['repo_url']}")
+                         files=result["files"], private=not public,
+                         approved=True)
+            print(f"DELIVERED — {result['files']} files -> {result['repo_url']} "
+                  f"({'private' if not public else 'public'})")
             return
     if not args.github:
         archive = export_zip(generated, workdir / "export")
@@ -382,7 +408,9 @@ def cmd_run(args) -> None:
     if args.deliver:
         cmd_deliver(argparse.Namespace(
             dir=args.dir, github=args.github,
-            repo_name=getattr(args, "repo_name", "")))
+            repo_name=getattr(args, "repo_name", ""),
+            approve=bool(getattr(args, "approve", False)),
+            public=bool(getattr(args, "public", False))))
 
 
 def cmd_status(args) -> None:
@@ -474,6 +502,12 @@ def build_parser() -> argparse.ArgumentParser:
     pd.add_argument("--dir", default=".")
     pd.add_argument("--github", action="store_true",
                     help="push to GitHub (requires GITHUB_TOKEN)")
+    pd.add_argument("--approve", action="store_true",
+                    help="explicitly approve the external side effect "
+                         "(repository delivery); without it delivery stops")
+    pd.add_argument("--public", action="store_true",
+                    help="publish to a PUBLIC repository instead of private; "
+                         "only with --approve and an intended decision")
     pd.add_argument("--repo-name", default="")
     pd.set_defaults(func=cmd_deliver)
 
@@ -487,6 +521,11 @@ def build_parser() -> argparse.ArgumentParser:
                     help="deliver to GitHub (requires GITHUB_TOKEN)")
     pr.add_argument("--accept-assumptions", action="store_true",
                     help="accept gate-level challenges when running the pipeline")
+    pr.add_argument("--approve", action="store_true",
+                    help="explicitly approve GitHub delivery when --deliver "
+                         "--github is requested")
+    pr.add_argument("--public", action="store_true",
+                    help="publish to a PUBLIC repository instead of private")
     pr.set_defaults(func=cmd_run)
 
     return p

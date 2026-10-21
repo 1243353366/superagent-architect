@@ -253,7 +253,7 @@
   "plan_path": "deterministic",
   "plan_notes": "",
   "verification": {
-    "attempts": 2,
+    "attempts": 1,
     "checks": [
       {
         "name": "compileall",
@@ -265,13 +265,19 @@
         "name": "generated-project-tests",
         "passed": true,
         "executed": true,
-        "detail": "test_crud_roundtrip (test_app.EndToEndTests.test_crud_roundtrip) ... ok\ntest_health (test_app.EndToEndTests.test_health) ... ok\ntest_method_not_allowed (test_app.EndToEndTests.test_method_not_allowed) ... ok\ntest_persistence_across_restart (test_app.EndToEndTests.test_persistence_across_restart) ... ok\ntest_ui_page_served (test_app.EndToEndTests.test_ui_page_served) ... ok\ntest_unknown_resource_and_route (test_app.EndToEndTests.test_unknown_resource_and_route) ... ok\ntest_validation_rejects_bad_payloads (test_app.EndToEndTests.test_validation_rejects_bad_payloads) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 1.063s\n\nOK\n"
+        "detail": "test_crud_roundtrip (test_app.EndToEndTests.test_crud_roundtrip) ... ok\ntest_health (test_app.EndToEndTests.test_health) ... ok\ntest_method_not_allowed (test_app.EndToEndTests.test_method_not_allowed) ... ok\ntest_persistence_across_restart (test_app.EndToEndTests.test_persistence_across_restart) ... ok\ntest_ui_page_served (test_app.EndToEndTests.test_ui_page_served) ... ok\ntest_unknown_resource_and_route (test_app.EndToEndTests.test_unknown_resource_and_route) ... ok\ntest_validation_rejects_bad_payloads (test_app.EndToEndTests.test_validation_rejects_bad_payloads) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 1.047s\n\nOK\n"
       },
       {
         "name": "secret-scan",
         "passed": true,
         "executed": true,
         "detail": "no hardcoded credentials found"
+      },
+      {
+        "name": "dependency-provenance",
+        "passed": true,
+        "executed": true,
+        "detail": "standard library only; no third-party dependencies declared"
       }
     ]
   },

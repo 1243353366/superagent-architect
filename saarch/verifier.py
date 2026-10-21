@@ -15,6 +15,7 @@ Adaptive persistence (the third enforced behavior):
 """
 from __future__ import annotations
 
+import ast
 import hashlib
 import re
 import subprocess
@@ -42,6 +43,44 @@ SECRET_PATTERNS = [
     (r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----", "embedded private key"),
 ]
 _PLACEHOLDER_ALLOWLIST = ("values", "changeme", "replace-me", "example", "<your")
+
+
+def check_dependency_provenance(app_dir: Path) -> CheckResult:
+    """Dependency provenance: the generated app must be standard-library only.
+
+    Every import in every generated module is resolved against the stdlib
+    allowlist plus the project's own modules; requirements.txt may declare
+    nothing. A third-party dependency is a specification-level decision that
+    must be explicit and justified — never a silent template default.
+    """
+    app_dir = Path(app_dir)
+    local = {f.stem for f in app_dir.glob("*.py")} | {"app", "tests"}
+    problems = []
+    for py in sorted(app_dir.rglob("*.py")):
+        try:
+            tree = ast.parse(py.read_text(encoding="utf-8"))
+        except SyntaxError as exc:
+            problems.append(f"{py.relative_to(app_dir)}: unparsable ({exc})")
+            continue
+        for node in ast.walk(tree):
+            names = []
+            if isinstance(node, ast.Import):
+                names = [a.name.split(".")[0] for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                names = [node.module.split(".")[0]]
+            for n in names:
+                if n not in getattr(sys, "stdlib_module_names", ()) and n not in local:
+                    problems.append(f"{py.relative_to(app_dir)} imports third-party module '{n}'")
+    req = app_dir / "requirements.txt"
+    if req.is_file():
+        for line in req.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                problems.append(f"requirements.txt declares a dependency: {line}")
+    return CheckResult(
+        "dependency-provenance", passed=not problems, executed=True,
+        detail="; ".join(problems[:10]) if problems
+        else "standard library only; no third-party dependencies declared")
 
 
 def _run(cmd: List[str], cwd: Path) -> tuple:
@@ -109,6 +148,7 @@ def verify(project: Project, workdir: Path, audit: AuditLog | None = None) -> Ve
         detail=tail or (err or "")[-2000:]))
 
     checks.append(scan_secrets(app_dir))
+    checks.append(check_dependency_provenance(app_dir))
 
     report = VerificationReport(attempts=1, checks=checks)
     if audit:
