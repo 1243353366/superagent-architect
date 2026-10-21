@@ -1,0 +1,64 @@
+[
+ {
+  "_hash": "7a5b367302bfa7d8",
+  "record": {
+   "discovered": {
+    "detector": "D1_engine_only_or_empty_cert",
+    "seed": 28
+   },
+   "disposition": null,
+   "id": "Z1",
+   "repro": {
+    "ops": [
+     "ingest",
+     "open_session",
+     "collision"
+    ]
+   },
+   "status": "walking",
+   "title": "Engine hijacks a live question via test-id collision and the requirement certifies on zero evidence"
+  }
+ },
+ {
+  "_hash": "70ee7121d252cd59",
+  "record": {
+   "discovered": {
+    "detector": "D3_question_hijack",
+    "seed": 28
+   },
+   "disposition": null,
+   "id": "Z2",
+   "repro": {
+    "ops": [
+     "ingest",
+     "open_session",
+     "collision"
+    ]
+   },
+   "status": "walking",
+   "title": "Engine redefines a question after a human answer was recorded against it (question immutability violated)"
+  }
+ },
+ {
+  "_hash": "a69a384a74ffbb1f",
+  "record": {
+   "discovered": {
+    "detector": "D5_wrong_resolution",
+    "seed": 32
+   },
+   "disposition": null,
+   "id": "Z3",
+   "repro": {
+    "ops": [
+     "ingest",
+     "open_session",
+     "propose_batch",
+     "promote",
+     "human_answer_trap"
+    ]
+   },
+   "status": "walking",
+   "title": "Trusted-channel answer misparse: 'Absolutely ... cancel anytime after commitment' resolved to candidate A by substring match"
+  }
+ }
+]

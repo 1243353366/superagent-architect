@@ -1,0 +1,18 @@
+{
+ "detector": "D1_engine_only_or_empty_cert",
+ "seed": 28,
+ "original": [
+  "ingest",
+  "open_session",
+  "propose_batch",
+  "promote",
+  "human_answer",
+  "collision",
+  "certify"
+ ],
+ "minimized": [
+  "ingest",
+  "open_session",
+  "collision"
+ ]
+}

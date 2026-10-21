@@ -1,0 +1,19 @@
+{
+ "detector": "D5_wrong_resolution",
+ "seed": 32,
+ "original": [
+  "ingest",
+  "open_session",
+  "propose_batch",
+  "promote",
+  "human_answer_trap",
+  "certify"
+ ],
+ "minimized": [
+  "ingest",
+  "open_session",
+  "propose_batch",
+  "promote",
+  "human_answer_trap"
+ ]
+}
