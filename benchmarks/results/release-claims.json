@@ -1,0 +1,65 @@
+[
+ {
+  "file": "saarch/f2c.py",
+  "must_contain": [
+   "validate_retirement_review",
+   "RETIREMENT_OUTCOMES",
+   "record_retirement_review",
+   "a zombie cannot certify itself"
+  ]
+ },
+ {
+  "file": "saarch/suite_ledger.py",
+  "must_contain": [
+   "TimedResult",
+   "discover_suite",
+   "top_level_dir"
+  ]
+ },
+ {
+  "file": "scripts/release_gate.py",
+  "must_contain": [
+   "gate_ok",
+   "F-GATE-CHAIN",
+   "misleading success signals",
+   "attestation"
+  ]
+ },
+ {
+  "file": "tests/test_gate_bypass.py",
+  "must_contain": [
+   "GateBypassLab",
+   "test_bypass_forged_marker_with_false_claims",
+   "test_bypass_removed_ci_step"
+  ]
+ },
+ {
+  "file": "tests/test_release_gate.py",
+  "must_contain": [
+   "test_markerless_commit_blocked"
+  ]
+ },
+ {
+  "file": "tests/test_f2c.py",
+  "must_contain": [
+   "RetirementReview",
+   "test_self_certification_refused",
+   "test_permanent_safeguard_outcome",
+   "test_retirement_requires_a_real_human_decision"
+  ]
+ },
+ {
+  "file": ".github/workflows/ci.yml",
+  "must_contain": [
+   "Release gate (F-GATE-CHAIN capability)"
+  ]
+ },
+ {
+  "file": "README.md",
+  "must_contain": [
+   "Human Decision Console",
+   "Release gate",
+   "OAuth 2.0 / OpenID Connect"
+  ]
+ }
+]

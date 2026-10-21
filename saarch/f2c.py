@@ -208,6 +208,9 @@ class Store:
                 validate_gap(row)
             elif "fwbc_id" in row:
                 validate_fwbc(row)
+            elif "review_id" in row and row.get("record_kind") \
+                    is None:
+                validate_retirement_review(row)
             elif row.get("record_kind") == "goal_directive":
                 if not (row.get("directive", "").strip()
                         and row.get("rationale", "").strip()
@@ -396,6 +399,58 @@ def validate_gap(record: Dict[str, Any]) -> Dict[str, Any]:
     return record
 
 
+# ----------------- zombie self-retirement protocol
+# A zombie exists to contain a harmful process, collect evidence,
+# and prevent recurrence. It earns its retirement by proving the
+# problem is solved, proving its removal is safe, and leaving behind
+# durable regression coverage. It NEVER certifies its own retirement
+# solely from its own assessment: the retired outcome requires
+# independent verification evidence AND a human decision. Some
+# zombies become permanent safeguards: the incident retires, the
+# guard remains as a validated capability.
+
+RETIREMENT_OUTCOMES = ("resolved_retired",
+                       "resolved_protection_retained",
+                       "unresolved_active")
+
+
+def validate_retirement_review(record):
+    need = ("review_id", "schema_version", "created_at", "zombie_id",
+            "underlying_incident", "proposed_fix",
+            "verification_evidence", "challenge_evidence",
+            "collateral_evidence", "outcome")
+    _check(record, need,
+           need + ("escalation", "human_decision_id"),
+           "retirement review")
+    if record["outcome"] not in RETIREMENT_OUTCOMES:
+        raise F2CError(f"retirement outcome {record['outcome']!r} "
+                       f"not in {RETIREMENT_OUTCOMES}")
+    if record["outcome"] == "unresolved_active" and \
+            not record.get("escalation", "").strip():
+        raise F2CError("an unresolved zombie must say WHY it stays "
+                       "active — escalate the uncertainty honestly")
+    if record["outcome"] != "unresolved_active":
+        if not all((record["verification_evidence"],
+                    record["challenge_evidence"],
+                    record["collateral_evidence"])):
+            raise F2CError("resolution claims require verification "
+                           "(fix works), challenge (failure conditions "
+                           "recreated in isolation), and collateral "
+                           "(no other protection depends on removal) "
+                           "evidence")
+    if record["outcome"] == "resolved_retired":
+        if not record["verification_evidence"].get("passed"):
+            raise F2CError("retiring a zombie requires PASSING "
+                           "independent verification — never its own "
+                           "assessment")
+        if not record.get("human_decision_id"):
+            raise F2CError("retiring a zombie is a consequential "
+                           "change: a human decision is required "
+                           "before the zombie consumes its active "
+                           "role")
+    return record
+
+
 # ------------------------------------------------------------- the engine
 
 class FailureToCapabilityEngine:
@@ -514,6 +569,33 @@ class FailureToCapabilityEngine:
         antibodies = sorted({ab["name"] for m in models
                              for ab in m["antibodies"]})
         return {"models": models, "antibodies": antibodies}
+
+    # ------------------ zombie self-retirement protocol
+    def record_retirement_review(self, record):
+        """Register a zombie retirement review. The zombie consumes
+        its ACTIVE ROLE only — never the historical record,
+        reproduction, evidence, or regression coverage. Retired
+        outcomes must cite a human_decision row that actually exists
+        in this store: a zombie cannot certify itself."""
+        validate_retirement_review(record)
+        for r in self.store.records:
+            if r.get("review_id") == record["review_id"]:
+                if r == record:
+                    return r                # idempotent replay
+                raise F2CError("review_id exists with different "
+                               "content — refusing to fork the "
+                               "review")
+        if record["outcome"] == "resolved_retired":
+            found = self.store.find(
+                "decision_id", record["human_decision_id"])
+            if not found or found.get("record_kind") != \
+                    "human_decision":
+                raise F2CError(
+                    f"human_decision {record['human_decision_id']!r} "
+                    "does not exist in this store — retirement "
+                    "requires a real recorded human decision, not a "
+                    "citation the zombie wrote itself")
+        return self.store.append(record)
 
     # ------------------ tell the human, let them decide, refuse harm
     def register_goal_directive(self, directive: str, rationale: str,

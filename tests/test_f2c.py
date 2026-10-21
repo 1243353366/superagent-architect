@@ -646,3 +646,105 @@ class HumanGuidedGaps(unittest.TestCase):
         from saarch.f2c import Store
         with self.assertRaises(F2CError):
             Store(path)
+
+
+class RetirementReview(unittest.TestCase):
+    """The zombie self-retirement protocol: a zombie never certifies
+    its own retirement. Retired outcomes require passing independent
+    verification AND a human decision row that actually exists."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.engine = FailureToCapabilityEngine(
+            Path(self.tmp.name) / "s.jsonl", Path(self.tmp.name))
+
+    def _review(self, **over):
+        r = {
+            "review_id": "R-T", "schema_version": F2C_SCHEMA_VERSION,
+            "created_at": "2026-10-21T00:00:00Z",
+            "zombie_id": "Z-T", "underlying_incident": "F-T",
+            "proposed_fix": "the guard now prevents recurrence",
+            "verification_evidence":
+                {"passed": True, "detail": "regression green"},
+            "challenge_evidence":
+                {"detail": "failure conditions recreated in "
+                 "isolation; fix holds"},
+            "collateral_evidence":
+                {"detail": "no other regression depends on this "
+                 "zombie's removal"},
+            "outcome": "resolved_retired",
+            "human_decision_id": "H-1"}
+        r.update(over)
+        return r
+
+    def test_retirement_requires_a_real_human_decision(self):
+        with self.assertRaises(F2CError):
+            self.engine.record_retirement_review(
+                self._review())          # no decision row exists
+        self.engine.open_gap({
+            "gap_id": "G-R", "schema_version": F2C_SCHEMA_VERSION,
+            "created_at": "2026-10-21T00:00:00Z",
+            "gap_class": "unvalidated_mitigation",
+            "subject": "F-T",
+            "plain_language": "should the zombie stand down?",
+            "known_facts": ["fix verified"],
+            "unknowns": [], "assumptions": [],
+            "competing_hypotheses": [],
+            "consequences": "none",
+            "uncertainty": 0.1, "safety_impact": "S3",
+            "recurrence": 0, "human_resolvable": True,
+            "recommended_options": ["retire it"],
+            "status": "open"})
+        decision = self.engine.answer_gap("G-R", "retire it",
+                                          "retire it")
+        rec = self.engine.record_retirement_review(
+            self._review(human_decision_id=decision["decision_id"]))
+        self.assertEqual(rec["outcome"], "resolved_retired")
+        self.assertIs(rec, self.engine.record_retirement_review(
+            self._review(human_decision_id=decision["decision_id"])))
+        with self.assertRaises(F2CError):
+            self.engine.record_retirement_review(
+                self._review(review_id="R-T2",
+                             human_decision_id="H-999"))
+
+    def test_self_certification_refused(self):
+        with self.assertRaises(F2CError):
+            self.engine.record_retirement_review(
+                self._review(verification_evidence={"passed": False,
+                                                     "detail": "x"}))
+        with self.assertRaises(F2CError):
+            self.engine.record_retirement_review(
+                self._review(human_decision_id=None))
+
+    def test_permanent_safeguard_outcome(self):
+        """Resolved, protection retained: the incident retires, the
+        guard remains as a validated capability — no consequential
+        change, so no retirement decision needed."""
+        rec = self.engine.record_retirement_review(self._review(
+            review_id="R-S",
+            outcome="resolved_protection_retained",
+            human_decision_id=None))
+        self.assertEqual(rec["outcome"],
+                         "resolved_protection_retained")
+
+    def test_unresolved_requires_honest_escalation(self):
+        rec = self.engine.record_retirement_review(
+            self._review(review_id="R-U", outcome="unresolved_active",
+                         escalation="the flake never reproduced; "
+                         "evidence insufficient",
+                         verification_evidence={},
+                         challenge_evidence={},
+                         collateral_evidence={}))
+        self.assertEqual(rec["outcome"], "unresolved_active")
+        with self.assertRaises(F2CError):
+            self.engine.record_retirement_review(
+                self._review(review_id="R-U2",
+                             outcome="unresolved_active",
+                             escalation="  "))
+
+    def test_missing_evidence_refused(self):
+        with self.assertRaises(F2CError):
+            self.engine.record_retirement_review(
+                self._review(review_id="R-E", challenge_evidence={}))
