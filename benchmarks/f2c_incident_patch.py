@@ -1445,6 +1445,19 @@ def main() -> int:
         "outcome": "resolved_protection_retained",
         "escalation": ""})
 
+    # --- formal transition: F-GATE-CHAIN's recorded closing
+    # criterion is "a regression test that fails when the gate is
+    # bypassed" — satisfied by the bypass lab. The incident retires
+    # behind that test; the gate itself remains a permanent
+    # safeguard (resolved, protection retained).
+    for status in ("reproduced", "classified", "candidate_created",
+                   "validated"):
+        engine.set_status("F-GATE-CHAIN", status)
+    engine.retire_failure(
+        "F-GATE-CHAIN",
+        "tests.test_gate_bypass::GateBypassLab."
+        "test_bypass_markerless_commit")
+
     # --- F-SUITE-FLAKE stays an active, evidence-collecting zombie
     engine.record_disposition(
         "F-SUITE-FLAKE", "unresolved_active",

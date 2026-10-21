@@ -329,13 +329,14 @@ here rather than hidden.
 Database state, exactly as it stands: the retirement-review
 machinery is implemented and tested (a zombie never certifies its
 own retirement). Review RR-GATE-1 with outcome
-`resolved_protection_retained` is on record in the database — the
-incident retires, the guard remains. But the originating
-F-GATE-CHAIN failure record itself has NOT been formally
-transitioned to retired: it remains in `observed` status under its
-recorded closing criterion, and no formal retirement is claimed.
-The release gate remains a permanent safeguard regardless of the
-incident record's status.
+`resolved_protection_retained` is on record — the incident retires,
+the guard remains — and the originating F-GATE-CHAIN failure
+record has been formally transitioned to retired behind the
+bypass-lab regression test
+(`tests.test_gate_bypass.py::GateBypassLab`
+`::test_bypass_markerless_commit`), satisfying its
+recorded closing criterion: a regression test that fails when the
+gate is bypassed. The release gate remains a permanent safeguard.
 
 ### Verified vs hypothesized vs unresolved
 
@@ -343,8 +344,8 @@ incident record's status.
   integrity, goal guard with four registered directives, console
   MFA end-to-end, release-gate protections, capture-harness
   behavior, reproducible acceptance bound to the commit.
-- Unresolved: G-002 (never captured); the formal F-GATE-CHAIN
-  record transition (review recorded, transition not performed).
+- Unresolved: G-002 (never captured, evidence-collecting trap
+  set).
 - Hypothesis (explicitly unconfirmed): the historical intermittent
   suite failures may share one root cause; no hypothesis is
   treated as confirmed without a captured ledger row.
