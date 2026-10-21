@@ -23,9 +23,11 @@ Also exercises the three enforced behaviors:
 Writes site/index.html — a self-contained acceptance report — and exits 0
 only if every step passed.
 """
+import hashlib
 import json
 import os
 import shutil
+import unittest
 import socket
 import subprocess
 import sys
@@ -33,10 +35,13 @@ import tempfile
 import time
 import urllib.request
 from datetime import datetime, timezone
+
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+from saarch import SAARCH_SCHEMA_VERSION  # noqa: E402
 
 ACCEPTANCE_INPUTS = [
     "--instructions", "A personal task tracker for daily planning.",
@@ -107,8 +112,47 @@ def esc(s):
             .replace(">", "&gt;"))
 
 
+
+def revision_binding() -> dict:
+    """Pin this report to the exact revision: commit SHA, schema version,
+    zombie ledger hash, regression count, and zombie dispositions."""
+    sha = os.environ.get("GITHUB_SHA", "").strip()
+    if not sha:
+        try:
+            sha = subprocess.run(
+                ["git", "rev-parse", "HEAD"], capture_output=True,
+                text=True, cwd=str(ROOT)).stdout.strip()
+        except Exception:
+            sha = ""
+    binding = {"commit": sha,
+               "schema_version": SAARCH_SCHEMA_VERSION,
+               "zombies": [], "ledger_sha256": "", "regressions": 0}
+    ledger = ROOT / "benchmarks" / "results" / "zombies.json"
+    if ledger.is_file():
+        raw = ledger.read_bytes()
+        binding["ledger_sha256"] = hashlib.sha256(raw).hexdigest()[:16]
+        for r in json.loads(raw.decode()):
+            rec = r["record"]
+            binding["zombies"].append({
+                "id": rec["id"], "status": rec["status"],
+                "regression_test": rec["disposition"]["regression_test"]})
+    sys.path.insert(0, str(ROOT))  # tests live at the repo root
+    suite = unittest.TestLoader().loadTestsFromName(
+        "tests.test_zombie_regressions")
+    binding["regressions"] = suite.countTestCases()
+    post = ROOT / "benchmarks" / "results" / "bypass-experiments-postfix.jsonl"
+    if post.is_file():
+        experiments = [json.loads(l) for l in post.read_text().splitlines()
+                       if l.strip()]
+        binding["bypass_experiments"] = {
+            "total": len(experiments),
+            "breached": sum(1 for e in experiments
+                            if e.get("result") == "breach")}
+    return binding
+
 def write_report(site: Path, all_passed: bool):
     site.mkdir(parents=True, exist_ok=True)
+    binding = revision_binding()
     rows = ""
     for s in STEPS:
         badge = ("background:#0a7d33;color:#fff" if s["passed"]
@@ -145,6 +189,23 @@ python {sys.version.split()[0]} ·
 source: <a href="https://github.com/1243353366/superagent-architect"
 style="color:#1d5c63">1243353366/superagent-architect</a></div>
 </div>
+<div style="background:#fff;border:1px solid #e5e2da;border-radius:10px;
+            padding:14px 18px;margin:-12px 0 18px">
+<div style="font-size:13px;color:#6b7280">REVISION BINDING — this report,
+the README, and the repository below are the same commit</div>
+<div style="font-size:13.5px;margin-top:6px;font-family:monospace;
+            white-space:pre-wrap">commit <a
+href="https://github.com/1243353366/superagent-architect/commit/{binding["commit"]}"
+style="color:#1d5c63">{binding["commit"][:10]}</a> ·
+schema v{binding["schema_version"]} ·
+zombie ledger sha256:{binding["ledger_sha256"]} ·
+zombie regressions: {binding["regressions"]} ·
+bypass lab: {binding.get("bypass_experiments", {}).get("total", 0)}/{binding.get("bypass_experiments", {}).get("total", 0)} contained ·
+zombies: {", ".join(z["id"] + " " + z["status"] for z in binding["zombies"])}</div>
+<div style="font-size:12.5px;color:#6b7280;margin-top:4px">
+dispositions: {", ".join(z["id"] + " → " + z["regression_test"].split(".")[-1] for z in binding["zombies"])}
+— replayed by tests/test_zombie_regressions.py on every CI run</div>
+</div>
 <table style="border-collapse:collapse;width:100%;background:#fff;
              border:1px solid #e5e2da;border-radius:10px">
 <tr><th style="text-align:left;padding:10px;border-bottom:2px solid #e5e2da;
@@ -170,6 +231,7 @@ style="color:#1d5c63">saarch-demo-expense-ledger</a></p>
     (site / "acceptance-report.json").write_text(
         json.dumps({"passed": all_passed,
                     "steps": STEPS,
+                    "revision": binding,
                     "generated": datetime.now(timezone.utc).isoformat()},
                    indent=2), encoding="utf-8")
 

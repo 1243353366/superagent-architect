@@ -257,6 +257,12 @@ minimized repros):
 `tests/test_zombie_regressions.py` replays every retired zombie's
 minimized repro. If it fails, a documented failure has silently returned.
 
+The [live acceptance report](https://1243353366.github.io/superagent-architect/)
+is bound to the exact revision that produced it: commit SHA, schema version,
+zombie-ledger hash, regression count, and disposition IDs are printed on the
+report and asserted against `GITHUB_SHA` in CI — a stale report is
+self-evident, not silently wrong.
+
 **What makes the zombie schema useful:** the repro is self-contained — it
 runs against a fresh in-memory core, so it preserves everything needed to
 reproduce the failure and nothing that grants access to the original

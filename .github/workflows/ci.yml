@@ -33,6 +33,19 @@ jobs:
           python-version: "3.11"
       - name: Run the acceptance test
         run: python scripts/acceptance.py
+      - name: Reconcile report to this exact revision
+        run: |
+          python - <<'PY'
+          import json, os
+          r = json.load(open("site/acceptance-report.json"))
+          rev = r["revision"]["commit"]
+          assert rev == os.environ["GITHUB_SHA"], (
+              "report not bound to this commit: "
+              f"{rev} != {os.environ['GITHUB_SHA']}")
+          print("report bound to commit", rev[:10],
+              "| schema", r["revision"]["schema_version"],
+              "| ledger", r["revision"]["ledger_sha256"])
+          PY
       - name: Upload acceptance report artifact
         if: always()
         uses: actions/upload-artifact@v4
