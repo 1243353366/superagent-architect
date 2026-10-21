@@ -97,3 +97,24 @@ class SecondAppPipelineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SingularizationRegression(unittest.TestCase):
+    """F-SPEC-SINGULARIZATION (registered in the failure database):
+    the singularizer once stripped characters wrongly from words like
+    'expenses'. This test is the regression coverage that closes it."""
+
+    def test_expenses_singularizes_safely(self):
+        from saarch.spec_builder import singularize
+        self.assertEqual(singularize("expenses"), "expense")
+        self.assertEqual(singularize("Expenses "), "expense")
+
+    def test_ss_and_us_words_stay_singular(self):
+        from saarch.spec_builder import singularize
+        for word in ("status", "virus", "bonus", "address"):
+            self.assertEqual(singularize(word), word)
+
+    def test_ies_and_sses_rules(self):
+        from saarch.spec_builder import singularize
+        self.assertEqual(singularize("policies"), "policy")
+        self.assertEqual(singularize("classes"), "class")

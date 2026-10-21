@@ -483,6 +483,44 @@ learning.
 **Vocabulary note:** `silent_failure` was added to the failure-class
 vocabulary as a documented backward-compatible extension of schema 1.0.
 
+## Failure White Blood Cell (FWBC): immune memory
+
+Failures are not just stored — they are digested. Each incident is
+classified (code, process, assumption, communication, monitoring
+failure, or accidental success; assumption failures prioritized as the
+highest-value learning), then reduced to a **condition model**: the
+fundamental conditions that made it possible (asking "what condition
+made this possible?" until the chain bottoms out), the hidden
+assumptions, trigger/environmental/behavioral factors, and
+**antibodies** — prevention mechanisms with a detection rule and a
+mitigation.
+
+Stored in the same hash-chained database as additional records
+(`engine.analyze_incident`), condition models form the system's immune
+memory:
+
+```python
+engine.immune_memory({"pattern_signatures": ["automation_trust"]})
+# -> condition models + antibodies for every failure that ever
+#    exhibited this theme, across unrelated incidents
+```
+
+Recurring themes (`assumption_mismatch`, `verification_failure`,
+`automation_trust`, `naming_ambiguity`, ...) are how the system
+recognizes a pathogen it has seen before. Four failures are currently
+digested: the CI patch-anchor incident (an assumption failure whose
+fundamental condition was trusting success signals without artifact
+verification), zombie Z1 and Z2 (assumed uniqueness and rollback
+semantics), and the singularization bug.
+
+Two rules are enforced by the engine, not by convention: antibody
+honesty (an antibody may claim "implemented" only by citing a
+capability the store has actually validated) and blame-free storage —
+conditions and patterns only, never fault assignment. Accidental
+successes are treated as mutations: analyzed for the conditions that
+enabled them and converted into reusable strategies when they can be
+intentionally reproduced.
+
 ## Isolated execution
 
 Nothing the pipeline *executes* runs against your workspace: every

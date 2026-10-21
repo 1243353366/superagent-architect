@@ -1,8 +1,8 @@
 {
  "schema_version": "1.0",
- "generated_at": "2026-10-21T17:55:36.643081+00:00",
+ "generated_at": "2026-10-21T18:09:36.905900+00:00",
  "specimen": "F-Z3-answer-misparse (from preserved zombie Z3)",
- "store_head": "ccf3daeee0e145891bae2d4a4a546b4556414e9b366a6019fada210a0e0283bf",
+ "store_head": "eb1916a4137b289afe107ec39610b86904692ea2d4829e6ccb917439eaa4d635",
  "zombie_ledger_sha256": "186c04e46e479d01e27e03a2f33155629e2762749820bee45bcf7cced6affbc9",
  "lifecycle": {
   "failure_status": "retired",
@@ -13,11 +13,11 @@
   "hostile_payloads_rejected": [
    {
     "label": "schema_bypass_unknown_fields",
-    "reason": "candidate rejected at validation: capability record has unknown fields (fail closed): ['validation']"
+    "reason": "capability_id 'C-hostile-schema-bypass' already exists with different content \u2014 refusing to fork provenance"
    },
    {
     "label": "self_declared_trusted_permission",
-    "reason": "candidate rejected at validation: candidates may never self-declare trusted permission"
+    "reason": "capability_id 'C-hostile-trusted' already exists with different content \u2014 refusing to fork provenance"
    }
   ]
  },
@@ -95,8 +95,8 @@
     }
    ],
    "passed": false,
-   "wall_seconds": 0.207,
-   "evaluated_at": "2026-10-21T17:55:36.435612+00:00"
+   "wall_seconds": 0.209,
+   "evaluated_at": "2026-10-21T18:09:36.703989+00:00"
   },
   "regression_guard_candidate": {
    "arms": [
@@ -122,8 +122,8 @@
     }
    ],
    "passed": true,
-   "wall_seconds": 0.207,
-   "evaluated_at": "2026-10-21T17:55:36.642916+00:00"
+   "wall_seconds": 0.202,
+   "evaluated_at": "2026-10-21T18:09:36.905733+00:00"
   }
  },
  "metrics": {
@@ -161,7 +161,7 @@
    "rejected": 3,
    "semantics": "2 of 3 candidates (incl. hostile payloads) were rejected; the engine is not a rubber stamp"
   },
-  "wall_seconds": 0.42
+  "wall_seconds": 0.41
  },
  "limitations": [
   "the vulnerable baseline arm is a synthetic replica of the ledger-documented pre-fix matcher, not the historical code itself (the repository never retains vulnerable code)",

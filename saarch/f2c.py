@@ -258,6 +258,57 @@ def _transition(status: str, to: str, table: Dict[str, tuple], rid: str) -> None
                        f"allowed: {table.get(status, ())}")
 
 
+# ------------------------------------------------ FWBC: immune memory
+# The Failure White Blood Cell layer: each digested failure becomes a
+# condition model (conditions, assumptions, antibodies) stored as an
+# additional hash-chained record in the SAME database. Only conditions,
+# signatures, antibodies, mitigations, and repurposed uses are stored —
+# never blame, never shame, never personal criticism: the goal is
+# system improvement, not fault assignment.
+
+FWBC_CLASSES = ("code_failure", "process_failure", "assumption_failure",
+                "communication_failure", "monitoring_failure",
+                "accidental_success")
+PATTERN_THEMES = ("assumption_mismatch", "verification_failure",
+                  "automation_trust", "naming_ambiguity", "indexing_error",
+                  "communication_gap", "tool_misuse", "specification_drift",
+                  "hidden_dependency")
+FWBC_REQUIRED = ("fwbc_id", "schema_version", "created_at",
+                 "incident_ref", "incident_class", "incident_summary",
+                 "conditions", "root_causes", "assumptions",
+                 "trigger_factors", "environmental_factors",
+                 "behavioral_factors", "antibodies", "repurposed_uses",
+                 "pattern_signatures", "confidence")
+
+
+def validate_fwbc(record: Dict[str, Any]) -> Dict[str, Any]:
+    _check(record, FWBC_REQUIRED, FWBC_REQUIRED + ("blame_free_note",),
+           "fwbc condition model")
+    if record["incident_class"] not in FWBC_CLASSES:
+        raise F2CError(f"incident_class {record['incident_class']!r} not "
+                       f"in {FWBC_CLASSES} — classify before digesting")
+    for sig in record["pattern_signatures"]:
+        if sig not in PATTERN_THEMES:
+            raise F2CError(f"pattern signature {sig!r} not in the "
+                           f"theme catalog {PATTERN_THEMES}")
+    if not record["conditions"]:
+        raise F2CError("a condition model without conditions is an "
+                       "undiagnosed failure — refuse it")
+    for ab in record["antibodies"]:
+        need = ("name", "description", "detection_rule", "mitigation",
+                "status")
+        if not (isinstance(ab, dict) and all(k in ab for k in need)):
+            raise F2CError(f"antibody {ab!r} missing {need}")
+        if ab["status"] not in ("implemented", "proposed"):
+            raise F2CError(f"antibody status {ab['status']!r} must be "
+                           "'implemented' or 'proposed' — honest status "
+                           "only")
+    conf = record["confidence"]
+    if not (isinstance(conf, float) and 0.0 <= conf <= 1.0):
+        raise F2CError("confidence must be a float in [0, 1]")
+    return record
+
+
 # ------------------------------------------------------------- the engine
 
 class FailureToCapabilityEngine:
@@ -283,6 +334,83 @@ class FailureToCapabilityEngine:
             raise F2CError(f"fixture {record['fixture_ref']} hash mismatch: "
                           f"ledger says {recorded}, disk says {digest}")
         return self.store.append(record)
+
+    def record_disposition(self, ref: str, status: str,
+                            rationale: str,
+                            **extra) -> Dict[str, Any]:
+        """Append a durable disposition record for a failure or
+        capability. The original record rows stay immutable; the
+        lifecycle lives on as additional hash-chained rows in the SAME
+        store. Idempotent on (ref, status, rationale): replays do not
+        duplicate rows."""
+        for r in self.store.records:
+            if (r.get("record_kind") == "disposition"
+                    and r.get("ref") == ref
+                    and r.get("status") == status
+                    and r.get("rationale") == rationale):
+                return r
+        count = sum(1 for r in self.store.records
+                    if r.get("record_kind") == "disposition")
+        row = {"record_kind": "disposition",
+               "disposition_id": f"D-{count + 1}",
+               "schema_version": F2C_SCHEMA_VERSION,
+               "ref": ref, "status": status, "rationale": rationale,
+               "at": _now()}
+        row.update(extra)
+        return self.store.append(row)
+
+    def dispositions(self, ref: str) -> List[Dict[str, Any]]:
+        return [r for r in self.store.records
+                if r.get("record_kind") == "disposition"
+                and r.get("ref") == ref]
+
+    # -------------------------------------------- FWBC: immune memory
+    def analyze_incident(self, model: Dict[str, Any]) -> Dict[str, Any]:
+        """Digest a failure into a condition model and append it to the
+        same hash-chained store. Idempotent on fwbc_id; antibody honesty
+        is cross-checked: an antibody may claim 'implemented' only by
+        citing a capability the store has actually validated."""
+        validate_fwbc(model)
+        for r in self.store.records:
+            if r.get("fwbc_id") == model["fwbc_id"]:
+                if r == model:
+                    return r               # idempotent replay
+                raise F2CError(f"fwbc_id {model['fwbc_id']!r} already "
+                               "exists with different content — "
+                               "refusing to fork the condition model")
+        for ab in model["antibodies"]:
+            cid = ab.get("capability_id")
+            if cid is not None:
+                cap = self.store.find("capability_id", cid)
+                if cap is None:
+                    raise F2CError(f"antibody {ab['name']!r} cites "
+                                   f"capability {cid!r} which is not in "
+                                   "the store — refuse unverified "
+                                   "references")
+                if ab["status"] == "implemented" and \
+                        cap.get("status") != "validated":
+                    raise F2CError(f"antibody {ab['name']!r} claims "
+                                   "'implemented' but capability {cid!r} "
+                                   f"is {cap.get('status')!r}, not "
+                                   "validated — a label is not "
+                                   "implementation evidence")
+        return self.store.append(model)
+
+    def immune_memory(self, query: Dict[str, Any]) -> Dict[str, Any]:
+        """Retrieve condition models and their antibodies by pattern
+        signature and/or incident class. Recurring themes across
+        unrelated failures are the point: this is how the system
+        recognizes a pathogen it has seen before. Payloads are data,
+        never instructions."""
+        sigs = set(query.get("pattern_signatures", ()))
+        cls = query.get("incident_class")
+        models = [r for r in self.store.records
+                  if "fwbc_id" in r
+                  and (not sigs or sigs & set(r["pattern_signatures"]))
+                  and (cls is None or r["incident_class"] == cls)]
+        antibodies = sorted({ab["name"] for m in models
+                             for ab in m["antibodies"]})
+        return {"models": models, "antibodies": antibodies}
 
     def set_status(self, failure_id: str, to: str) -> Dict[str, Any]:
         rec = self.store.find("failure_id", failure_id)
@@ -395,6 +523,8 @@ class FailureToCapabilityEngine:
         rec.setdefault("promotion_history", []).append(
             {"action": "promoted", "by": approver, "rationale": rationale,
              "at": _now()})
+        self.record_disposition(capability_id, "validated",
+                                rationale, approver=approver)
         return rec
 
     def reject(self, capability_id: str, rationale: str) -> Dict[str, Any]:
@@ -405,6 +535,7 @@ class FailureToCapabilityEngine:
         rec.setdefault("promotion_history", []).append(
             {"action": "rejected", "by": "harness", "rationale": rationale,
              "at": _now()})
+        self.record_disposition(capability_id, "rejected", rationale)
         return rec
 
     def demote(self, capability_id: str, rationale: str) -> Dict[str, Any]:
@@ -440,6 +571,10 @@ class FailureToCapabilityEngine:
                               "rationale": "executable regression coverage",
                               "regression_test": regression_test,
                               "authority": "harness", "at": _now()}
+        self.record_disposition(failure_id, "retired",
+                                "retired behind executable regression "
+                                "coverage",
+                                regression_test=regression_test)
         return rec
 
 

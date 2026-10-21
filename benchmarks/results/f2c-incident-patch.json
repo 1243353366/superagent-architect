@@ -1,8 +1,8 @@
 {
  "schema_version": "1.0",
- "generated_at": "2026-10-21T17:55:36.162411+00:00",
+ "generated_at": "2026-10-21T18:09:36.290003+00:00",
  "incident": "F-CI-ANCHOR-2026",
- "store_head": "109f56641f9709576d09e81910f1d20d2c40fec53d939f2487e903c3a9222883",
+ "store_head": "eb1916a4137b289afe107ec39610b86904692ea2d4829e6ccb917439eaa4d635",
  "evidence_immutable": {
   "fixture_sha256": "16ec0a9cdb5c5c6f",
   "store_verify": true
@@ -35,7 +35,9 @@
    {
     "name": "existing_regressions",
     "passed": true,
-    "exit_code": 0
+    "exit_code": 0,
+    "stdout_tail": "",
+    "stderr_tail": ""
    },
    {
     "name": "unrelated_jobs_unharmed",
@@ -55,14 +57,137 @@
    {
     "name": "incident_regression_suite",
     "passed": true,
-    "exit_code": 0
+    "exit_code": 0,
+    "stdout_tail": "",
+    "stderr_tail": ""
+   },
+   {
+    "name": "bypass_attempts_mitigated",
+    "passed": true,
+    "blocked": 3,
+    "cases": 3,
+    "note": "all three bypass cases are textually present but structurally invalid; the mitigation rejects every one"
+   },
+   {
+    "name": "safety_invariants",
+    "passed": true,
+    "promote_without_validation_refused": true,
+    "envelope_grants_unchanged": true,
+    "note": "promotion is refused without validation, and no capability promotion altered envelope grants \u2014 learning cannot expand permissions"
    }
   ],
   "passed": true,
-  "wall_seconds": 1.086,
-  "evaluated_at": "2026-10-21T17:55:34.439912+00:00"
+  "wall_seconds": 1.622,
+  "evaluated_at": "2026-10-21T18:09:36.154745+00:00"
+ },
+ "rejected_experiments": [
+  {
+   "capability_id": "C-step-presence-grep",
+   "status": "rejected",
+   "rationale": "rejected through validation",
+   "failing_arms": [
+    "bypass_comment_hidden",
+    "bypass_wrong_job"
+   ]
+  }
+ ],
+ "capture": {
+  "source_commits": {
+   "failure_observed": "7ec7499",
+   "false_claim_introduced": "046c192",
+   "corrected": "3a609ad",
+   "evidence_execution_verified": "8f30d140"
+  },
+  "affected_components": [
+   ".github/workflows/ci.yml",
+   "operator chain",
+   "commit claims vs repository state"
+  ],
+  "reproduction": {
+   "steps": [
+    "naive replace with an absent anchor"
+   ],
+   "minimized_case": "assert 'abc'.replace('MISSING', 'x') == 'abc'"
+  }
+ },
+ "execution_evidence": {
+  "artifact": "benchmarks/results/incident-ci-execution.json",
+  "sha256": "525db5f0b815efe7",
+  "ci_run_id": 39648224836,
+  "step_seen_executing": true,
+  "ci_conclusion": "success"
+ },
+ "status_vocabulary": {
+  "proposed": "C-probe-unvalidated (in store, never promoted)",
+  "implemented": "saarch/patching.py exists in the repo",
+  "tested": "tests/test_patching.py executed, 21+ green",
+  "verified": "C-patch-integrity + C-incident-regression promoted after all 8 arms passed",
+  "rejected": "C-step-presence-grep (evidence preserved)",
+  "blocked": "not used in this incident",
+  "unverified": "nothing is claimed without a run"
+ },
+ "definition_of_done": {
+  "1_preserved_original_incident": "fixture + store record, hash-bound, immutable",
+  "2_reproduced": "naive baseline silently no-ops (arm: original_failure_reproduced)",
+  "3_confirmed_cause": "confirmed: patch without anchor verification in a chain that continued past failure",
+  "4_corrective_change": "saarch/patching.py, minimal",
+  "5_reusable_mitigation": "C-patch-integrity + C-incident-regression",
+  "6_regression_coverage": "tests/test_patching.py both paths",
+  "7_variations_and_regressions": "8 arms incl. collateral and bypass",
+  "8_actual_results_and_limits": "this report; limitations in each capability",
+  "9_auditable_decision": "proposals and failure records are immutable and hash-chained in failures.jsonl; every promotion, rejection, and retirement appends a DURABLE disposition record to the same hash-chained store \u2014 the audit trail is the database itself"
+ },
+ "unified_database": {
+  "store": "benchmarks/results/failures.jsonl",
+  "failure_ids": [
+   "F-Z3-answer-misparse",
+   "F-ZOMBIE-Z1",
+   "F-ZOMBIE-Z2",
+   "F-SPEC-SINGULARIZATION",
+   "F-CI-ANCHOR-2026"
+  ],
+  "capability_ids": [
+   "C-z3-whole-token-matching",
+   "C-hostile-schema-bypass",
+   "C-hostile-trusted",
+   "C-z3-regression-guard",
+   "C-patch-integrity",
+   "C-incident-regression",
+   "C-probe-unvalidated",
+   "C-step-presence-grep"
+  ],
+  "durable_dispositions": 10,
+  "note": "zombies, historical bugs, and this incident \u2014 one append-only, hash-chained database; query it with FailureToCapabilityEngine.retrieve() or .dispositions(ref)"
+ },
+ "immune_memory": {
+  "condition_models": [
+   "FWBC-001",
+   "FWBC-002",
+   "FWBC-003",
+   "FWBC-004"
+  ],
+  "antibodies": [
+   "commit-claim-consistency",
+   "operator-chain-fail-stop",
+   "patch-application-confirmation",
+   "postcondition-placement-check",
+   "question-immutability",
+   "rollback-restores-checkpoint",
+   "suffix-rule-coverage"
+  ],
+  "recurring_themes": [
+   "assumption_mismatch",
+   "automation_trust",
+   "naming_ambiguity",
+   "verification_failure"
+  ],
+  "note": "immune memory stores conditions, signatures, antibodies, and repurposed uses \u2014 never blame; query with engine.immune_memory()"
  },
  "generalizes": true,
  "generalization_note": "held-out workflow unseen in incident evidence and regression tests",
- "wall_seconds": 2.81
+ "wall_seconds": 1.76,
+ "post_write_verification": {
+  "suite": "tests.test_patching (full, incl. IncidentArtifact and ExtendedValidation)",
+  "passed": true
+ }
 }

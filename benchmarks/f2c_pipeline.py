@@ -164,7 +164,7 @@ def candidate_whole_token(failure_id: str) -> dict:
     return {
         "capability_id": "C-z3-whole-token-matching",
         "schema_version": F2C_SCHEMA_VERSION,
-        "created_at": _now(),
+        "created_at": "2026-10-21T00:00:00Z",  # fixed: historical replay
         "type": "strategy",
         "status": "proposed",
         "description": "Resolve trusted-channel answers only on whole-token "
@@ -190,7 +190,7 @@ def candidate_regression_guard(failure_id: str) -> dict:
     return {
         "capability_id": "C-z3-regression-guard",
         "schema_version": F2C_SCHEMA_VERSION,
-        "created_at": _now(),
+        "created_at": "2026-10-21T00:00:00Z",  # fixed: historical replay
         "type": "regression_test",
         "status": "proposed",
         "description": "tests.test_zombie_regressions::test_z3 replays "
@@ -224,7 +224,7 @@ def main(argv=None) -> int:
     failure = engine.ingest_failure({
         "failure_id": "F-Z3-answer-misparse",
         "schema_version": F2C_SCHEMA_VERSION,
-        "created_at": _now(),
+        "created_at": "2026-10-21T00:00:00Z",  # fixed: historical replay
         "failure_class": "answer_parsing",
         "severity": "S2",
         "status": "observed",

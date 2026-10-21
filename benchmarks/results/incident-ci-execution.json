@@ -1,0 +1,12 @@
+{
+ "commit": "8f30d140",
+ "ci_run_id": 39648224836,
+ "ci_conclusion": "success",
+ "job": "test (ubuntu-latest, 3.11)",
+ "step_seen_executing": true,
+ "step_output_observed": true,
+ "step_command": "python benchmarks/governed_pipeline.py",
+ "observed_output": "governed build: released | adversarial blocked: True",
+ "checked_at": "2026-10-21T18:05:00Z",
+ "note": "execution evidence: the regeneration step inserted by the fix ran and exited green in the real CI matrix on commit 8f30d140, which fixed the record"
+}

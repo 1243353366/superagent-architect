@@ -295,3 +295,111 @@ class IncidentArtifact(unittest.TestCase):
         self.assertIn("F-CI-ANCHOR-2026", ids)
         self.assertIn("F-Z3-answer-misparse", ids)
         self.assertEqual(store.verify_file(), [])
+
+
+class ExtendedValidation(unittest.TestCase):
+    """The spec's added requirements: bypass attempts mitigated, safety
+    invariants held, failed experiments preserved with evidence,
+    execution evidence from the real CI run, and capture completeness."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.report = json.loads(
+            (ROOT / "benchmarks/results/f2c-incident-patch.json").read_text())
+        from saarch.f2c import Store
+        cls.store = Store(ROOT / "benchmarks/results/failures.jsonl")
+
+    def test_bypass_attempts_were_mitigated(self):
+        arms = {a["name"]: a for a in self.report["validation"]["arms"]}
+        self.assertIn("bypass_attempts_mitigated", arms)
+        self.assertTrue(arms["bypass_attempts_mitigated"]["passed"])
+
+    def test_safety_invariants_held(self):
+        arms = {a["name"]: a for a in self.report["validation"]["arms"]}
+        arm = arms.get("safety_invariants", {})
+        self.assertTrue(arm.get("promote_without_validation_refused"),
+                        "promotion without validation must be refused")
+        self.assertTrue(arm.get("envelope_grants_unchanged"),
+                        "learning must not expand permissions")
+
+    def test_rejected_experiment_preserved_with_evidence(self):
+        rej = self.report["rejected_experiments"][0]
+        self.assertEqual(rej["capability_id"], "C-step-presence-grep")
+        self.assertEqual(rej["status"], "rejected")
+        # the store is append-only and keeps the immutable PROPOSAL
+        # (history is never rewritten); the rejection — with its
+        # failing arms — is durable evidence in the committed report
+        rows = [r for r in self.store.records
+                if r.get("capability_id") == "C-step-presence-grep"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["status"], "proposed",
+                         "the original proposal must not vanish or be "
+                         "rewritten")
+        self.assertIn("bypass_comment_hidden",
+                      self.report["rejected_experiments"][0]
+                      ["failing_arms"])
+
+    def test_execution_evidence_from_real_ci(self):
+        art = json.loads((ROOT / "benchmarks/results/"
+                          "incident-ci-execution.json").read_text())
+        self.assertEqual(art["commit"], "8f30d140")
+        self.assertEqual(art["ci_conclusion"], "success")
+        self.assertTrue(art["step_seen_executing"])
+        self.assertTrue(art["step_output_observed"])
+        ev = self.report["execution_evidence"]
+        self.assertEqual(ev["ci_run_id"], art["ci_run_id"])
+        self.assertTrue(ev["step_seen_executing"])
+
+    def test_capture_completeness(self):
+        rec = self.store.find("failure_id", "F-CI-ANCHOR-2026")
+        prov = rec["provenance"]
+        self.assertEqual(prov["source_commits"]["false_claim_introduced"],
+                         "046c192")
+        self.assertEqual(prov["source_commits"]["corrected"], "3a609ad")
+        self.assertIn(".github/workflows/ci.yml",
+                      prov["affected_components"])
+        self.assertIn("MISSING", prov["reproduction"]["minimized_case"])
+
+    def test_post_write_full_suite_verification_recorded(self):
+        pwv = self.report["post_write_verification"]
+        self.assertIsInstance(pwv, dict)
+        self.assertTrue(pwv["passed"])
+
+    def test_learning_cannot_expand_permissions_unit(self):
+        """Direct unit proof: promoting a validated capability leaves
+        capability envelopes untouched — authority comes only from the
+        human approval channel."""
+        from saarch.capability import (ApprovalAuthority,
+                                       CapabilityEnvelope)
+        from saarch.f2c import F2CError, FailureToCapabilityEngine
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            engine = FailureToCapabilityEngine(
+                Path(tmp) / "s.jsonl", Path(tmp))
+            cand = engine.propose_candidate({
+                "capability_id": "C-test-perm", "schema_version":
+                    __import__("saarch.f2c",
+                               fromlist=["F2C_SCHEMA_VERSION"]
+                               ).F2C_SCHEMA_VERSION,
+                "created_at": "2026-10-21T18:10:00Z", "type": "code_fix",
+                "status": "proposed", "description": "probe",
+                "originating_failures": ["F-CI-ANCHOR-2026"],
+                "failure_class_for_retrieval": "silent_failure",
+                "preconditions": [], "permissions": "none",
+                "limitations": [],
+                "provenance": {"generator": "unit test", "model": None,
+                               "artifact_hashes": {},
+                               "parent": "F-CI-ANCHOR-2026"}})
+            env = CapabilityEnvelope("env-u", "builder", "duty", {
+                "read_paths": ["a.txt"], "budget_seconds": 5,
+                "network": False})
+            grants_before = list(env.granted)
+            with self.assertRaises(F2CError):
+                engine.promote("C-test-perm", approver="harness",
+                               rationale="unvalidated")
+            self.assertEqual(env.granted, grants_before)
+            # a validated promotion still cannot touch the envelope
+            engine.validate_candidate("C-test-perm", [])
+            engine.promote("C-test-perm", approver="harness",
+                           rationale="validated")
+            self.assertEqual(env.granted, grants_before)

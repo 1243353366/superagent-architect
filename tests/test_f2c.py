@@ -296,3 +296,93 @@ class PipelineReport(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FWBCImmuneMemory(unittest.TestCase):
+    """The Failure White Blood Cell layer: condition models are stored
+    as additional hash-chained records in the same database, antibodies
+    must be honest about their implementation status, and immune memory
+    retrieves by pattern signature across unrelated failures."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.engine = FailureToCapabilityEngine(
+            Path(self.tmp.name) / "s.jsonl", Path(self.tmp.name))
+        self.model = {
+            "fwbc_id": "FWBC-TEST-1", "schema_version": F2C_SCHEMA_VERSION,
+            "created_at": "2026-10-21T00:00:00Z",
+            "incident_ref": "F-X", "incident_class": "assumption_failure",
+            "incident_summary": "anchor text assumed to match the file",
+            "conditions": ["text patching without anchor verification",
+                           "chain continued past an assertion failure"],
+            "root_causes": ["success signals trusted without artifact "
+                            "verification"],
+            "assumptions": ["anchor text matches file content"],
+            "trigger_factors": ["renamed workflow step"],
+            "environmental_factors": ["shell operator chains"],
+            "behavioral_factors": ["commit message written from intent"],
+            "antibodies": [{"name": "abort-or-apply",
+                            "description": "patch must change the file",
+                            "detection_rule": "result == input is a "
+                                              "silent no-op",
+                            "mitigation": "abort loudly",
+                            "status": "proposed"}],
+            "repurposed_uses": ["claim-to-artifact audit"],
+            "pattern_signatures": ["automation_trust",
+                                   "assumption_mismatch"],
+            "confidence": 0.8}
+
+    def test_condition_model_validates_and_persists(self):
+        rec = self.engine.analyze_incident(self.model)
+        self.assertEqual(rec["fwbc_id"], "FWBC-TEST-1")
+        again = self.engine.analyze_incident(self.model)
+        self.assertIs(rec, again)      # idempotent replay, no fork
+        self.assertEqual(len(self.engine.store.records), 1)
+
+    def test_empty_condition_model_refused(self):
+        import copy
+        bad = copy.deepcopy(self.model)
+        bad["fwbc_id"] = "FWBC-TEST-2"
+        bad["conditions"] = []
+        with self.assertRaises(F2CError):
+            self.engine.analyze_incident(bad)
+
+    def test_unknown_pattern_signature_refused(self):
+        import copy
+        bad = copy.deepcopy(self.model)
+        bad["fwbc_id"] = "FWBC-TEST-3"
+        bad["pattern_signatures"] = ["blame"]
+        with self.assertRaises(F2CError):
+            self.engine.analyze_incident(bad)
+
+    def test_antibody_honesty_enforced(self):
+        # an antibody claiming 'implemented' by citing a capability the
+        # store never validated must be refused
+        self.engine.propose_candidate({
+            "capability_id": "C-unval", "schema_version":
+                F2C_SCHEMA_VERSION, "created_at": "2026-10-21T00:00:00Z",
+            "type": "code_fix", "status": "proposed", "description": "x",
+            "originating_failures": ["F-X"],
+            "failure_class_for_retrieval": "silent_failure",
+            "preconditions": [], "permissions": "none", "limitations": [],
+            "provenance": {"generator": "t", "model": None,
+                           "artifact_hashes": {}, "parent": "F-X"}})
+        import copy
+        bad = copy.deepcopy(self.model)
+        bad["fwbc_id"] = "FWBC-TEST-4"
+        bad["antibodies"][0]["capability_id"] = "C-unval"
+        bad["antibodies"][0]["status"] = "implemented"
+        with self.assertRaises(F2CError):
+            self.engine.analyze_incident(bad)
+
+    def test_immune_memory_retrieves_by_signature(self):
+        self.engine.analyze_incident(self.model)
+        mem = self.engine.immune_memory(
+            {"pattern_signatures": ["automation_trust"]})
+        self.assertEqual(len(mem["models"]), 1)
+        self.assertIn("abort-or-apply", mem["antibodies"])
+        miss = self.engine.immune_memory(
+            {"pattern_signatures": ["indexing_error"]})
+        self.assertEqual(miss["models"], [])
