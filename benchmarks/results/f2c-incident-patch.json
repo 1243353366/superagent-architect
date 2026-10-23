@@ -1,8 +1,8 @@
 {
  "schema_version": "1.0",
- "generated_at": "2026-10-21T19:46:41.748658+00:00",
+ "generated_at": "2026-10-23T22:11:33.644062+00:00",
  "incident": "F-CI-ANCHOR-2026",
- "store_head": "71cce30c58cadcb54d73ccc0257eefd32de210da6dec91090ed60dddab970d5b",
+ "store_head": "e8ea3df6ff24d9de26f0ca5714037ea889f035b529147d6c297112efbfe0f2eb",
  "evidence_immutable": {
   "fixture_sha256": "16ec0a9cdb5c5c6f",
   "store_verify": true
@@ -80,8 +80,8 @@
    }
   ],
   "passed": true,
-  "wall_seconds": 1.599,
-  "evaluated_at": "2026-10-21T19:46:41.625630+00:00"
+  "wall_seconds": 1.582,
+  "evaluated_at": "2026-10-23T22:11:33.521183+00:00"
  },
  "rejected_experiments": [
   {
@@ -151,7 +151,8 @@
    "F-ISO-Z-SUFFIX",
    "F-SUITE-FLAKE",
    "F-GATE-CHAIN",
-   "F-CAPTURE-HARNESS"
+   "F-CAPTURE-HARNESS",
+   "F-BUILD-DELIVERY"
   ],
   "capability_ids": [
    "C-z3-whole-token-matching",
@@ -166,7 +167,7 @@
    "C-probe-unvalidated",
    "C-step-presence-grep"
   ],
-  "durable_dispositions": 25,
+  "durable_dispositions": 26,
   "note": "zombies, historical bugs, and this incident \u2014 one append-only, hash-chained database; query it with FailureToCapabilityEngine.retrieve() or .dispositions(ref)"
  },
  "human_guided": {
@@ -206,7 +207,8 @@
    "FWBC-004",
    "FWBC-006",
    "FWBC-007",
-   "FWBC-008"
+   "FWBC-008",
+   "FWBC-009"
   ],
   "archetype_scans": [
    {
@@ -272,6 +274,14 @@
     "chicken": "The harness ran right after its first deployment, failing 26 fixture-dependent tests every run for eight runs.",
     "egg": "The auditor was not audited: the new monitoring tool was trusted precisely because gathering evidence was its purpose.",
     "farmer": "New monitoring tools must pass the same fixture discipline as the code they watch \u2014 pinned by regression, retired behind it."
+   },
+   {
+    "fwbc_id": "FWBC-009",
+    "adult": "Ten build-session failures were masked by success signals: green pipes, clean installs with missing tools, an empty migration applied without tables.",
+    "child": "The engineer judged ceremonies \u2014 exit codes, logs, command completion \u2014 instead of the artifacts they produced.",
+    "chicken": "The failures happened during rapid multi-system delivery: shell, database, CI, and web layers each failed quietly in turn.",
+    "egg": "The assumption 'if the command finished, the work happened' carried across every layer and was never re-examined until a hang or a red CI exposed it.",
+    "farmer": "Verification must bind to artifacts: count the tables, run the runner, cite the executable test. The release gate enforces this for claims; the same discipline now applies to every build step."
    }
   ],
   "antibodies": [
@@ -285,6 +295,7 @@
    "rollback-restores-checkpoint",
    "suffix-rule-coverage",
    "suite-failure-ledger",
+   "verify-the-artifact",
    "version-matrix-in-ci",
    "z-suffix-normalization",
    "zero-evidence-certification-refusal"
@@ -300,7 +311,7 @@
  },
  "generalizes": true,
  "generalization_note": "held-out workflow unseen in incident evidence and regression tests",
- "wall_seconds": 4.84,
+ "wall_seconds": 4.77,
  "post_write_verification": {
   "suite": "tests.test_patching (full, incl. IncidentArtifact and ExtendedValidation)",
   "passed": true
